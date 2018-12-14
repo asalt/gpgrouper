@@ -2000,6 +2000,17 @@ def set_up(usrdatas, column_aliases):
         if column_aliases:
             standard_names = column_identifier(usrdata.df, column_aliases)
             protected_names = ('Modified sequence')
+            duplicate_cols = list()
+            for k,v in standard_names.items():
+                if k != v and k in usrdata.df.columns:
+                    # duplicate column identified
+                    # for example if Sequence and Annotated Sequence are present,
+                    # and we only want to keep Annotated Sequence, we need to
+                    # remove Sequence because Annotated Sequence will be renamed
+                    # to Sequence, and we will have 2 sequence columns
+                    duplicate_cols.append(k)
+            usrdata.df = usrdata.df.drop(duplicate_cols, axis=1)
+
             usrdata.df.rename(columns={v: k
                                        for k,v in standard_names.items()},
                               inplace=True
@@ -2011,7 +2022,6 @@ def set_up(usrdatas, column_aliases):
             # print(usrdata.df.memory_usage().sum())
             usrdata.df = usrdata.df.drop(redundant_cols, axis=1)
             # print(usrdata.df.memory_usage().sum())
-
         # usrdata.df = usrdata.populate_base_data()
         usrdata.populate_base_data()
         if 'DeltaMassPPM' not in usrdata.df:
