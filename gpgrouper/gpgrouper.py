@@ -1,4 +1,4 @@
-#===============================================================================#
+
 # PyGrouper - Alex Saltzman
 from __future__ import print_function
 
@@ -640,7 +640,7 @@ def rank_peptides(df, area_col, ranks_only=False):
     return df
 
 
-def flag_AUC_PSM(df, fv, contaminant_label='__CONTAMINANT__', phospho=False):
+def flag_AUC_PSM(df, fv, contaminant_label='__CONTAMINANT__', phospho=False, acetyl=False):
 
     if fv['pep'] =='all' : fv['pep'] = float('inf')
     if fv['idg'] =='all' : fv['idg'] = float('inf')
@@ -681,8 +681,12 @@ def flag_AUC_PSM(df, fv, contaminant_label='__CONTAMINANT__', phospho=False):
 
     df.loc[ df['GeneIDs_All'].fillna('').str.contains(contaminant_label), ['AUC_UseFLAG', 'PSM_UseFLAG'] ] = 0, 0
 
+    # phospho modifications are designated in SequenceModi via: XXS(pho)XX
+    # similarly acetyl modifications are designated via: XXK(ace)
     if phospho:
-        df.loc[ ~df['SequenceModi'].str.contains('pho', case=False), ['AUC_UseFLAG', 'PSM_UseFLAG'] ] = 0, 0
+        df.loc[ ~df['SequenceModi'].str.contains('pho', case=True), ['AUC_UseFLAG', 'PSM_UseFLAG'] ] = 0, 0
+    elif acetyl:
+        df.loc[ ~df['SequenceModi'].str.contains('ace', case=True), ['AUC_UseFLAG', 'PSM_UseFLAG'] ] = 0, 0
 
     return df
 
@@ -1517,7 +1521,7 @@ def grouper(usrdata, outdir='', database=None,
                     .pipe(sum_area)
                     .pipe(auc_reflagger)  # remove duplicate sequence areas
                     .pipe(flag_AUC_PSM, usrdata.filtervalues, contaminant_label=contaminant_label,
-                            phospho=usrdata.phospho)
+                            phospho=usrdata.phospho, acetyl=usrdata.acetyl)
                     .pipe(split_on_geneid)
                     .assign(TaxonID = lambda x: x['GeneID'].map(gene_taxon_dict),
                             Symbol = lambda x: x['GeneID'].map(gene_symbol_dict),
@@ -2023,6 +2027,10 @@ def set_up(usrdatas, column_aliases):
             usrdata.df = usrdata.df.drop(redundant_cols, axis=1)
             # print(usrdata.df.memory_usage().sum())
         # usrdata.df = usrdata.populate_base_data()
+        # some data exports include positional info about sequences
+        # such as: [K].xxxxxxxxxxxK.[N]
+        # we want to remove that and only have the exact peptide sequence
+        usrdata.df['Sequence'] = usrdata.df.Sequence.str.extract('(\w{3,})', expand=False)
         usrdata.populate_base_data()
         if 'DeltaMassPPM' not in usrdata.df:
             usrdata.df['DeltaMassPPM'] = 0

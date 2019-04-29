@@ -12,7 +12,7 @@ class UserData:
 
     def __init__(self, recno=None, datafile=None, runno=1, searchno=1, no_taxa_redistrib=0,
                  addedby='', indir = '.', outdir='.', rawfiledir='.',
-                 labeltype='none', quant_source=None, phospho=False,
+                 labeltype='none', quant_source=None, phospho=False, acetyl=False,
                  searchdb=None, taxonid=None, miscuts=2):
         if recno is None:
             raise ValueError('Must supply record number (recno)')
@@ -39,6 +39,7 @@ class UserData:
         self.taxon_ratio_totals = dict()
         self.miscuts = miscuts
         self.phospho = phospho
+        self.acetyl = acetyl
 
         with open(self.LOGFILE, 'w') as f:
             f.write('{} PyGrouper {}'.format(datetime.now(), _version.__version__))
@@ -121,7 +122,7 @@ class UserData:
         self.categorical_assign('EXPRecNo', self.recno)
         self.categorical_assign('EXPRunNo', self.runno)
         self.categorical_assign('EXPSearchNo', self.searchno)
-        self.categorical_assign('CreationTS', datetime.now().strftime("%m/%d/%Y) %H:%M:%S"))
+        self.categorical_assign('CreationTS', datetime.now().strftime("(%m/%d/%Y) %H:%M:%S"))
         self.categorical_assign('AddedBy', self.added_by)
         # self.categorical_assign('metadatainfo', '')  # not sure if this is okay
 
@@ -150,6 +151,8 @@ class UserData:
         s = 'is{ion_score}_qv{qvalue}_pep{pep}_idg{idg}_z{zmin}to{zmax}_mo{modi}_is_bins{ion_score_bins}'.format(**self.filtervalues)
         if self.phospho:
             s += '_phospho_only'
+        if self.acetyl:
+            s += '_acetyl_only'
         return s
 
     def categorical_assign(self, name, value, **kwargs):
