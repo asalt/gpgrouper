@@ -1568,6 +1568,7 @@ def grouper(usrdata, outdir='', database=None,
             #     time.ctime(), label))
 
         # ==========Select only peptides flagged  with good quality=========== #
+        data_cols = DATA_COLS
         temp_df = select_good_peptides(usrdata.df, labelix)
         if temp_df.empty:  # only do if we actually have peptides selected
             print('No good peptides found for {}'.format(labelix))
@@ -1675,7 +1676,6 @@ def grouper(usrdata, outdir='', database=None,
 
 
         usrdata.to_logq('{} | Starting peptide ranking.'.format(time.ctime()))
-        data_cols = DATA_COLS
         if usrdata.labeltype in ('TMT', 'iTRAQ'):
             if usrdata.labeltype == 'TMT':
                 data_cols = DATA_COLS + ['TMT_126', 'TMT_127_N', 'TMT_127_C', 'TMT_128_N',
@@ -1838,8 +1838,8 @@ def set_modifications(usrdata):
                   'Oxidation' : 'oxi', 'Phospho' : 'pho',
                   'Acetyl': 'ace', 'GlyGly' : 'gg', 'Label:13C(6)' : 'lab',
                   'Label:13C(6)+GlyGly' : 'labgg',
-                  '\)\(': ':'}
-    modis_abbrev = usrdata.Modifications.replace(regex=to_replace).fillna('')
+    '\)\(': ':'}
+    modis_abbrev = usrdata.Modifications.fillna('').replace(regex=to_replace)
     modis_abbrev.name = 'Modifications_abbrev'
     usrdata = usrdata.join(modis_abbrev)
     modifications = usrdata.apply(lambda x :
