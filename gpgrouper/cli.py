@@ -126,6 +126,7 @@ DEFAULTS = {'max_files': 99, 'pep': 1.0, 'enzyme': 'trypsin/P', 'configfile': No
               help='The three (ascending) IonScore cutoffs used to place PSMs in quality bins.')
 @click.option('-l', '--labeltype', type=click.Choice(['none', 'SILAC', 'iTRAQ', 'TMT']),
               default=DEFAULTS['labeltype'], show_default=True, help='Type of label for this experiment.')
+@click.option('--min-pept-len', default=7, show_default=True)
 @click.option('-m', '--miscuts', type=int, default=DEFAULTS['miscuts'],
               help='Number of allowed miscuts', show_default=True)
 @click.option('--modi', type=int, default=DEFAULTS['modi'], show_default=True,
@@ -161,8 +162,22 @@ DEFAULTS = {'max_files': 99, 'pep': 1.0, 'enzyme': 'trypsin/P', 'configfile': No
 @click.option('-s', '--configfile', type=click.Path(exists=True, dir_okay=False),
               help=''''Points to a specific configfile for use in the analysis.
               Note will automatically look for a `gpgrouper_config.ini` in present directory if not specified''')
+@click.option('--semi-tryptic', is_flag=True, default=False, show_default=True,
+              help="""Semi-tryptic enzymatic digestion. Right now only goes a max of 3 AAs in each direction
+              for performance considerations.""")
+@click.option('--semi-tryptic-iter', default=6, type=int, show_default=True)
 @click.option('-t', '--taxonid', type=str,
               help='Taxon ID associated with the database file')
+@click.option('--protein-column', default=None, type=str, show_default=True,
+              help="""
+              protein identifier column to use. Will attempt to map protein accession numbers to pre-annotated
+              protein gene mapping table using NCBI protein gi or accession.
+              Each entry is a semicolon (;) delimited list of protein accession numbers.
+              Assumes all peptides valid matches and ignores fasta database and miscuts flag.
+              Use in combination with `--protein-columntype`
+              """
+)
+@click.option('--protein-columntype', type=click.Choice(['ref', 'gi']) )
 @click.option('--zmin', type=int, default=DEFAULTS['zmin'], show_default=True,
               help='Minimum charge')
 @click.option('--zmax', type=int, default=DEFAULTS['zmax'], show_default=True,
@@ -177,17 +192,18 @@ DEFAULTS = {'max_files': 99, 'pep': 1.0, 'enzyme': 'trypsin/P', 'configfile': No
               help="""Number of workers to use when multiprocessing is appropriate.
               Has no effect if the OS cannot fork""")
 def run(autorun, contaminants, contaminant_label, database, enzyme, interval, ion_score,
-        ion_score_bins, labeltype, miscuts, modi, name, no_taxa_redistrib, outdir, psms_file,
-        pipeline, idg, pep, qvalue, quant_source, rawfiledir, configfile, taxonid, zmin, zmax,
+        ion_score_bins, labeltype, min_pept_len, miscuts, modi, name, no_taxa_redistrib, outdir, psms_file,
+        pipeline, idg, pep, qvalue, quant_source, rawfiledir, configfile, semi_tryptic, semi_tryptic_iter, taxonid, zmin, zmax,
+        protein_column, protein_columntype,
         phospho, record_no, run_no, search_no, workers, razor):
     """Run gpGrouper"""
 
-    if not all([database, psms_file]) and not autorun:
+    if not all([database, psms_file]) and not autorun and (not database and not protein_column):
         click.echo('No database or psms file entered, showing help and exiting...')
         click.echo(click.get_current_context().get_help())
         sys.exit(1)
 
-    config = parse_configfile(configfile)  # will parse if config file is specified or pygrouper_config.ini exists in PD
+    config = parse_configfile(configfile)  # will parse if config file is specified or gpgrouper_config.ini exists in PD
     if config is None:
         config = Config(name)
     INPUT_DIR = config.inputdir
@@ -262,8 +278,13 @@ def run(autorun, contaminants, contaminant_label, database, enzyme, interval, io
         ret = gpgrouper.main(usrdatas=usrdatas, inputdir=INPUT_DIR, outputdir=OUTPUT_DIR,
                              refs=refseqs, column_aliases=column_aliases,
                              gid_ignore_file=contaminants, labels=LABELS,
-                             contaminant_label=contaminant_label, enzyme=enzyme, workers=workers,
-                             razor=razor)
+                             contaminant_label=contaminant_label, enzyme=enzyme, semi_tryptic=semi_tryptic,
+                             semi_tryptic_iter=semi_tryptic_iter,
+                             min_pept_len=min_pept_len,
+                             workers=workers,
+                             razor=razor, miscuts=miscuts,
+                             protein_column=protein_column, protein_columntype=protein_columntype,
+        )
         if not all(x.EXIT_CODE==0 for x in ret):
             for x in ret:
                 x.flush_log()

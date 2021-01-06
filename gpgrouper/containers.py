@@ -111,7 +111,7 @@ class UserData:
             return 2
         return 0
 
-    def output_name(self, suffix=None, ext='tab'):
+    def output_name(self, suffix=None, ext='tsv'):
         """generate an appropriate output file name
         returns rec_run_search_labeltype_filetype.tab"""
         # suffix = '_'.join([str(ix) for ix in suffix])
