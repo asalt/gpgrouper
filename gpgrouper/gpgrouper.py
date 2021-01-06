@@ -60,7 +60,8 @@ labelflag = {'none': 0,  # hard coded number IDs for labels
              'TMT_129_N': 1291,
              'TMT_130_C': 1300,
              'TMT_130_N': 1301,
-             'TMT_131': 1310,
+             'TMT_131_N': 1310,
+             'TMT_131_C': 1311,
              'iTRAQ_114': 113,
              'iTRAQ_114': 114,
              'iTRAQ_115': 115,
@@ -72,23 +73,8 @@ labelflag = {'none': 0,  # hard coded number IDs for labels
 }
 flaglabel = {v:k for k,v in labelflag.items()}
 
-E2G_COLS = ['EXPRecNo', 'EXPRunNo', 'EXPSearchNo', 'EXPLabelFLAG', 'AddedBy', 'CreationTS',
-            'ModificationTS', 'GeneID', 'GeneSymbol', 'Description', 'TaxonID', 'HIDs', 'PeptidePrint',
-            'GPGroup', 'GPGroups_All', 'ProteinGIs', 'ProteinRefs', 'ProteinGI_GIDGroups',
-            'ProteinGI_GIDGroupCount', 'ProteinRef_GIDGroups', 'ProteinRef_GIDGroupCount', 'IDSet', 'IDGroup',
-            'IDGroup_u2g', 'SRA', 'Coverage', 'Coverage_u2g', 'PSMs', 'PSMs_u2g', 'PeptideCount',
-            'PeptideCount_u2g', 'PeptideCount_S', 'PeptideCount_S_u2g', 'AreaSum_u2g_0', 'AreaSum_u2g_all',
-            'AreaSum_max', 'AreaSum_dstrAdj', 'GeneCapacity', 'iBAQ_dstrAdj']
-
-DATA_COLS = ['EXPRecNo', 'EXPRunNo', 'EXPSearchNo',
-             'Sequence', 'PSMAmbiguity', 'Modifications',
-             'ActivationType', 'DeltaScore', 'DeltaCn',
-             'Rank', 'SearchEngineRank', 'PrecursorArea',
-             'q_value', 'PEP', 'IonScore',
-             'MissedCleavages', 'IsolationInterference', 'IonInjectTime',
-             'Charge', 'mzDa', 'MHDa',
-             'DeltaMassDa', 'DeltaMassPPM', 'RTmin',
-             'FirstScan', 'LastScan', 'MSOrder', 'MatchedIons',
+E2G_COLS = ['EXPRecNo', 'EXPRunNo', 'EXPSearchNo', 'EXPLabelFLAG', 'AddedBy', 'CreationTS', 'ModificationTS', 'GeneID', 'GeneSymbol', 'Description', 'TaxonID', 'HIDs', 'PeptidePrint', 'GPGroup', 'GPGroups_All', 'ProteinGIs', 'ProteinRefs', 'ProteinGI_GIDGroups', 'ProteinGI_GIDGroupCount', 'ProteinRef_GIDGroups', 'ProteinRef_GIDGroupCount', 'IDSet', 'IDGroup', 'IDGroup_u2g', 'SRA', 'Coverage', 'Coverage_u2g', 'PSMs', 'PSMs_u2g', 'PeptideCount', 'PeptideCount_u2g', 'PeptideCount_S', 'PeptideCount_S_u2g', 'AreaSum_u2g_0', 'AreaSum_u2g_all', 'AreaSum_max', 'AreaSum_dstrAdj', 'GeneCapacity', 'iBAQ_dstrAdj']
+DATA_COLS = ['EXPRecNo', 'EXPRunNo', 'EXPSearchNo', 'Sequence', 'PSMAmbiguity', 'Modifications', 'ActivationType', 'DeltaScore', 'DeltaCn', 'Rank', 'SearchEngineRank', 'PrecursorArea', 'q_value', 'PEP', 'IonScore', 'MissedCleavages', 'IsolationInterference', 'IonInjectTime', 'Charge', 'mzDa', 'MHDa', 'DeltaMassDa', 'DeltaMassPPM', 'RTmin', 'FirstScan', 'LastScan', 'MSOrder', 'MatchedIons',
              'SpectrumFile', 'AddedBy',
              'oriFLAG',
              'CreationTS', 'ModificationTS', 'GeneID',
@@ -1680,7 +1666,7 @@ def grouper(usrdata, outdir='', database=None,
             if usrdata.labeltype == 'TMT':
                 data_cols = DATA_COLS + ['TMT_126', 'TMT_127_N', 'TMT_127_C', 'TMT_128_N',
                                         'TMT_128_C', 'TMT_129_N', 'TMT_129_C', 'TMT_130_N',
-                                        'TMT_130_C', 'TMT_131', 'QuanInfo', 'QuanUsage']
+                                         'TMT_130_C', 'TMT_131_N', 'TMT_131_C', 'QuanInfo', 'QuanUsage']
             elif usrdata.labeltype == 'iTRAQ':
                 data_cols = DATA_COLS + ['iTRAQ_114', 'iTRAQ_115', 'iTRAQ_116', 'iTRAQ_117',
                                         'QuanInfo', 'QuanUsage']
@@ -1752,7 +1738,7 @@ def grouper(usrdata, outdir='', database=None,
             if usrdata.labeltype == 'TMT':
                 data_cols = DATA_COLS + ['TMT_126', 'TMT_127_N', 'TMT_127_C', 'TMT_128_N',
                                         'TMT_128_C', 'TMT_129_N', 'TMT_129_C', 'TMT_130_N',
-                                        'TMT_130_C', 'TMT_131', 'QuanInfo', 'QuanUsage']
+                                         'TMT_130_C', 'TMT_131_N', 'TMT_131_C', 'QuanInfo', 'QuanUsage']
             elif usrdata.labeltype == 'iTRAQ':
                 data_cols = DATA_COLS + ['iTRAQ_114', 'iTRAQ_115', 'iTRAQ_116', 'iTRAQ_117',
                                         'QuanInfo', 'QuanUsage']
@@ -1794,7 +1780,7 @@ def grouper(usrdata, outdir='', database=None,
             if usrdata.labeltype == 'TMT':
                 data_cols = DATA_COLS + ['TMT_126', 'TMT_127_N', 'TMT_127_C', 'TMT_128_N',
                                          'TMT_128_C', 'TMT_129_N', 'TMT_129_C', 'TMT_130_N',
-                                         'TMT_130_C', 'TMT_131', 'QuanInfo', 'QuanUsage']
+                                         'TMT_130_C', 'TMT_131_N', 'TMT_131_C', 'QuanInfo', 'QuanUsage']
             elif usrdata.labeltype == 'iTRAQ':
                 data_cols = DATA_COLS + ['iTRAQ_114', 'iTRAQ_115', 'iTRAQ_116', 'iTRAQ_117',
                                          'QuanInfo', 'QuanUsage']
@@ -1888,8 +1874,12 @@ def load_fasta(refseq_file):
         df[col] = ''
     return df
 
-ENZYME = {'trypsin': dict(cutsites=('K', 'R'), exceptions=None),
-          'trypsin/P': dict(cutsites=('K', 'R'), exceptions=('P',)),
+ENZYME = {'trypsin': dict(cutsites=('K', 'R'), exceptions=('P',)),
+          'trypsin/P': dict(cutsites=('K', 'R'), exceptions=None),
+          'chymotrypsin': dict(cutsites=('Y', 'W', 'F', 'L'), exceptions=None),
+          'LysC': dict(cutsites=('K',), exceptions=None),
+          'GluC': dict(cutsites=('E',), exceptions=None),
+          'ArgC': dict(cutsites=('R',), exceptions=None),
 }
 # TODO: add the rest
  # 'trypsin/P', 'chymotrypsin', 'LysC', 'LysN', 'GluC', 'ArgC' 'AspN',}
