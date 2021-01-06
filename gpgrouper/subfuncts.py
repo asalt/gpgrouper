@@ -64,7 +64,7 @@ def rolling_window(seq,length_of_window):
             break
         yield tuple(window)
 
-def protease(seq,minlen = 0, cutsites=tuple(), exceptions=None, miscuts=2):
+def protease(seq,minlen = 0, cutsites=tuple(), exceptions=None, miscuts=2, semi_tryptic=False, semi_tryptic_iter=6):
     frags = []
     chop = ''
     if exceptions is None:
@@ -103,9 +103,28 @@ def protease(seq,minlen = 0, cutsites=tuple(), exceptions=None, miscuts=2):
                     else:
                         no_met.append(c)
         merged_list.append(''.join(no_met))
+
+    if semi_tryptic: #
+        # MAX_ITER = 6 # let's not go beyond this, too many peptides
+        MAX_ITER = semi_tryptic_iter
+        # maybe have option later
+        for frag in frags:
+            for i in range(1, len(frag)):
+                if i > MAX_ITER:
+                    break
+                semiN = frag[i:]
+                semiC = frag[:-1*i]
+                if len(semiN) < minlen and len(semiC) < minlen:
+                    break
+                if len(semiN) >= minlen and semiN not in merged_list:
+                    merged_list.append(semiN)
+                if len(semiC) >= minlen:
+                    merged_list.append(semiC)
+
     if len(frags) > 1:
         frags.append(frags[0][1:]) # chop off methionine
     nomiscuts_len = len([  x for x in frags if len(x) >= minlen  ])
+
     return [ x for x in frags+merged_list if len(x) >= minlen ], nomiscuts_len
 
 
@@ -321,7 +340,7 @@ def _seq_modi_old(sequence, modifications, keeplog=True):
         seqmodi = sequence
     return sequence, seqmodi, modi_len, label
 
-def _count_modis_maxquant(modi):
+def _count_modis_maxquant(modi, labeltype):
     if modi == 'Unmodified':
         return 0
     count = modi.count(',') + 1  # multiple modis are separated by a comma
@@ -334,9 +353,20 @@ def _count_modis_maxquant(modi):
 def count_modis_maxquant(df, labeltype):
     return df.apply(lambda x: _count_modis_maxquant(x['Modifications'], labeltype), axis=1)
 
+def count_modis_seqmodi(df, labeltype):
+    if labeltype == 'TMT':
+        return df.SequenceModi.str.count('\(') - df.SequenceModi.str.count('\([TMT|tmt]')
+    elif labeltype == 'iTRAQ':
+        return df.SequenceModi.str.count('\(') - df.SequenceModi.str.count('\([iTRAQ|itraq]')
+    else:
+        return df.SequenceModi.str.count('\(')
+
+
 def calculate_miscuts(seq, targets=None, exceptions=None):
     """Calculates number of miscuts for a given sequence
     using amino acids given in targets"""
+    if exceptions is None:
+        exceptions = tuple()
     not_miscut = [''.join(x) for x in itertools.product(targets, exceptions)]
     miscuts = sum(seq.count(x) for x in targets)
     miscuts_not = sum(seq.count(x) for x in not_miscut)
