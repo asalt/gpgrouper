@@ -36,6 +36,10 @@ setup(
     [console_scripts]
     gpgrouper=gpgrouper.cli:cli
     """,
+
+    package_data={'':['mappings/*tsv']},
+    include_package_data=True,
+
     # package_data={
     #     'pygrouper': ['base_config.ini']
     # }
