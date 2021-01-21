@@ -1,4 +1,3 @@
-#===============================================================================#
 # PyGrouper - Alex Saltzman
 from __future__ import print_function
 
@@ -62,9 +61,13 @@ labelflag = {'none': 0,  # hard coded number IDs for labels
              'TMT_129_N': 1291,
              'TMT_130_C': 1300,
              'TMT_130_N': 1301,
-             # 'TMT_131': 1310,
              'TMT_131_N': 1310,
              'TMT_131_C': 1311,
+             'TMT_132_N': 1321,
+             'TMT_132_C': 1320,
+             'TMT_133_N': 1331,
+             'TMT_133_C': 1330,
+             'TMT_134_N': 1340,
              'iTRAQ_114': 113,
              'iTRAQ_114': 114,
              'iTRAQ_115': 115,
@@ -139,7 +142,6 @@ GENE_QUANT_COLS = ['EXPRecNo', 'EXPRunNo', 'EXPSearchNo',
 
 
 # only SequenceArea and PrecursorArea_dstrAdj?
-
 
 _EXTRA_COLS = ['LastScan', 'MSOrder', 'MatchedIons']  # these columns are not required to be in the output data columns
 
@@ -915,7 +917,7 @@ def rank_peptides(df, area_col, ranks_only=False):
     return df
 
 
-def flag_AUC_PSM(df, fv, contaminant_label='__CONTAMINANT__', phospho=False):
+def flag_AUC_PSM(df, fv, contaminant_label='__CONTAMINANT__', phospho=False, acetyl=False):
 
     if fv['pep'] =='all' : fv['pep'] = float('inf')
     if fv['idg'] =='all' : fv['idg'] = float('inf')
@@ -956,8 +958,12 @@ def flag_AUC_PSM(df, fv, contaminant_label='__CONTAMINANT__', phospho=False):
 
     df.loc[ df['GeneIDs_All'].fillna('').str.contains(contaminant_label), ['AUC_UseFLAG', 'PSM_UseFLAG'] ] = 0, 0
 
+    # phospho modifications are designated in SequenceModi via: XXS(pho)XX
+    # similarly acetyl modifications are designated via: XXK(ace)
     if phospho:
-        df.loc[ ~df['SequenceModi'].str.contains('pho', case=False), ['AUC_UseFLAG', 'PSM_UseFLAG'] ] = 0, 0
+        df.loc[ ~df['SequenceModi'].str.contains('pho', case=True), ['AUC_UseFLAG', 'PSM_UseFLAG'] ] = 0, 0
+    elif acetyl:
+        df.loc[ ~df['SequenceModi'].str.contains('ace', case=True), ['AUC_UseFLAG', 'PSM_UseFLAG'] ] = 0, 0
 
     return df
 
@@ -1970,6 +1976,7 @@ def grouper(usrdata, outdir='', database=None,
         if df.empty:
             continue
 
+<<<<<<< HEAD
         # usrdata.df =  (df.pipe(assign_IDG, filtervalues=usrdata.filtervalues)
         #             .assign(sequence_lower = lambda x: x['Sequence'].str.lower())
         #             .sort_values(by=['SpectrumFile', area_col,
@@ -1998,6 +2005,27 @@ def grouper(usrdata, outdir='', database=None,
                        ProteinRefs = lambda x: x['GeneID'].map(gene_protref_dict),
                        LabelFLAG = labelix
                )
+=======
+        usrdata.df =  (df.pipe(assign_IDG, filtervalues=usrdata.filtervalues)
+                    .assign(sequence_lower = lambda x: x['Sequence'].str.lower())
+                    .sort_values(by=['SpectrumFile', area_col,
+                                    'Sequence', 'Modifications',
+                                    'Charge', 'PSM_IDG', 'IonScore', 'PEP',
+                                    'q_value'],
+                                ascending=[0, 0, 1, 1, 1, 1, 0, 1, 1])
+                    .pipe(redundant_peaks)  # remove ambiguous peaks
+                    .pipe(sum_area)
+                    .pipe(auc_reflagger)  # remove duplicate sequence areas
+                    .pipe(flag_AUC_PSM, usrdata.filtervalues, contaminant_label=contaminant_label,
+                            phospho=usrdata.phospho, acetyl=usrdata.acetyl)
+                    .pipe(split_on_geneid)
+                    .assign(TaxonID = lambda x: x['GeneID'].map(gene_taxon_dict),
+                            Symbol = lambda x: x['GeneID'].map(gene_symbol_dict),
+                            Description = lambda x: x['GeneID'].map(gene_desc_dict),
+                            ProteinGIs = lambda x: x['GeneID'].map(gene_protgi_dict),
+                            ProteinRefs = lambda x: x['GeneID'].map(gene_protref_dict),
+                    )
+>>>>>>> 7917bf8f89c5ef5c6c9af1609aad844b66bf7b6c
         )
 
 
@@ -2041,7 +2069,12 @@ def grouper(usrdata, outdir='', database=None,
             #     time.ctime(), label))
 
         # ==========Select only peptides flagged  with good quality=========== #
+<<<<<<< HEAD
         temp_df = select_good_peptides(dfm)
+=======
+        data_cols = DATA_COLS
+        temp_df = select_good_peptides(usrdata.df, labelix)
+>>>>>>> 7917bf8f89c5ef5c6c9af1609aad844b66bf7b6c
         if temp_df.empty:  # only do if we actually have peptides selected
             print('Warning, no good peptides found for label {}'.format(label))
             continue
@@ -2146,6 +2179,7 @@ def grouper(usrdata, outdir='', database=None,
         usrdata.to_logq('{} | Export of genetable for labeltype {} completed.'.format(time.ctime(), label))
 
 
+<<<<<<< HEAD
         # usrdata.to_logq('{} | Starting peptide ranking.'.format(time.ctime()))
         # data_cols = DATA_ID_COLS + DATA_QUANT_COLS
         # if usrdata.labeltype in ('TMT', 'iTRAQ'):
@@ -2161,6 +2195,22 @@ def grouper(usrdata, outdir='', database=None,
         # # ========================================================================= #
         # usrdata.df.drop('metadatainfo', axis=1, inplace=True)  # Don't need this
         #                                                    # column anymore.
+=======
+        usrdata.to_logq('{} | Starting peptide ranking.'.format(time.ctime()))
+        if usrdata.labeltype in ('TMT', 'iTRAQ'):
+            if usrdata.labeltype == 'TMT':
+                data_cols = DATA_COLS + ['TMT_126', 'TMT_127_N', 'TMT_127_C', 'TMT_128_N',
+                                        'TMT_128_C', 'TMT_129_N', 'TMT_129_C', 'TMT_130_N',
+                                         'TMT_130_C', 'TMT_131_N', 'TMT_131_C', 'QuanInfo', 'QuanUsage']
+            elif usrdata.labeltype == 'iTRAQ':
+                data_cols = DATA_COLS + ['iTRAQ_114', 'iTRAQ_115', 'iTRAQ_116', 'iTRAQ_117',
+                                        'QuanInfo', 'QuanUsage']
+            if razor:
+                data_cols.append('RazorArea')
+        # ========================================================================= #
+        usrdata.df.drop('metadatainfo', axis=1, inplace=True)  # Don't need this
+                                                           # column anymore.
+>>>>>>> 7917bf8f89c5ef5c6c9af1609aad844b66bf7b6c
 
         # if len(usrdata.df) == 0:
         #     print('No protein information for {}.\n'.format(repr(usrdata)))
@@ -2229,6 +2279,7 @@ def grouper(usrdata, outdir='', database=None,
         print_log_msg(msg=msg)
 
 
+<<<<<<< HEAD
         # data_cols = DATA_COLS
         # if usrdata.labeltype in ('TMT', 'iTRAQ'):
         #     if usrdata.labeltype == 'TMT':
@@ -2243,6 +2294,22 @@ def grouper(usrdata, outdir='', database=None,
         # if not all(x in usrdata.df.columns.values for x in set(data_cols) - set(_EXTRA_COLS)):
         #     print('Potential error, not all columns filled.')
         #     print([x for x in data_cols if x not in usrdata.df.columns.values])
+=======
+        data_cols = DATA_COLS
+        if usrdata.labeltype in ('TMT', 'iTRAQ'):
+            if usrdata.labeltype == 'TMT':
+                data_cols = DATA_COLS + ['TMT_126', 'TMT_127_N', 'TMT_127_C', 'TMT_128_N',
+                                        'TMT_128_C', 'TMT_129_N', 'TMT_129_C', 'TMT_130_N',
+                                         'TMT_130_C', 'TMT_131_N', 'TMT_131_C', 'QuanInfo', 'QuanUsage']
+            elif usrdata.labeltype == 'iTRAQ':
+                data_cols = DATA_COLS + ['iTRAQ_114', 'iTRAQ_115', 'iTRAQ_116', 'iTRAQ_117',
+                                        'QuanInfo', 'QuanUsage']
+            if razor and 'RazorArea' not in data_cols:
+                data_cols.append('RazorArea')
+        if not all(x in usrdata.df.columns.values for x in set(data_cols) - set(_EXTRA_COLS)):
+            print('Potential error, not all columns filled.')
+            print([x for x in data_cols if x not in usrdata.df.columns.values])
+>>>>>>> 7917bf8f89c5ef5c6c9af1609aad844b66bf7b6c
 
         out = os.path.join(usrdata.outdir, usrdata.output_name(regularize_filename(labelix)+'_psms', ext='tsv'))
         # out = os.path.join(usrdata.outdir, usrdata.output_name('psms', ext='tab'))
@@ -2289,6 +2356,20 @@ def grouper(usrdata, outdir='', database=None,
         #                                  'QuanInfo', 'QuanUsage']
 
 
+<<<<<<< HEAD
+=======
+        data_cols = DATA_COLS
+        if usrdata.labeltype in ('TMT', 'iTRAQ'):
+            if usrdata.labeltype == 'TMT':
+                data_cols = DATA_COLS + ['TMT_126', 'TMT_127_N', 'TMT_127_C', 'TMT_128_N',
+                                         'TMT_128_C', 'TMT_129_N', 'TMT_129_C', 'TMT_130_N',
+                                         'TMT_130_C', 'TMT_131_N', 'TMT_131_C', 'QuanInfo', 'QuanUsage']
+            elif usrdata.labeltype == 'iTRAQ':
+                data_cols = DATA_COLS + ['iTRAQ_114', 'iTRAQ_115', 'iTRAQ_116', 'iTRAQ_117',
+                                         'QuanInfo', 'QuanUsage']
+            if razor and 'RazorArea' not in data_cols:
+                data_cols.append('RazorArea')
+>>>>>>> 7917bf8f89c5ef5c6c9af1609aad844b66bf7b6c
         # if not all(x in isobar_output.columns.values for x in set(data_cols) - set(_EXTRA_COLS)):
         #     print('Potential error, not all columns filled.')
         #     print([x for x in data_cols if x not in isobar_output.columns.values])
@@ -2342,8 +2423,13 @@ def set_modifications(usrdata):
                   'Oxidation' : 'oxi', 'Phospho' : 'pho',
                   'Acetyl': 'ace', 'GlyGly' : 'gg', 'Label:13C(6)' : 'lab',
                   'Label:13C(6)+GlyGly' : 'labgg',
+<<<<<<< HEAD
                   '\)\(': ':'}
     modis_abbrev = usrdata.Modifications.fillna('').replace(regex=to_replace).fillna('')
+=======
+    '\)\(': ':'}
+    modis_abbrev = usrdata.Modifications.fillna('').replace(regex=to_replace)
+>>>>>>> 7917bf8f89c5ef5c6c9af1609aad844b66bf7b6c
     modis_abbrev.name = 'Modifications_abbrev'
     usrdata = usrdata.join(modis_abbrev)
 
@@ -2397,9 +2483,15 @@ def load_fasta(refseq_file):
         df[col] = ''
     return df
 
+<<<<<<< HEAD
 ENZYME = {'trypsin/P': dict(cutsites=('K', 'R'), exceptions=None),
           'trypsin': dict(cutsites=('K', 'R'), exceptions=('P',)),
           'chymotrypsin': dict(cutsites=('Y', 'W', 'F'), exceptions=None),
+=======
+ENZYME = {'trypsin': dict(cutsites=('K', 'R'), exceptions=('P',)),
+          'trypsin/P': dict(cutsites=('K', 'R'), exceptions=None),
+          'chymotrypsin': dict(cutsites=('Y', 'W', 'F', 'L'), exceptions=None),
+>>>>>>> 7917bf8f89c5ef5c6c9af1609aad844b66bf7b6c
           'LysC': dict(cutsites=('K',), exceptions=None),
           'GluC': dict(cutsites=('E',), exceptions=None),
           'ArgC': dict(cutsites=('R',), exceptions=None),
@@ -2523,6 +2615,7 @@ def set_up(usrdatas, column_aliases, enzyme='trypsin/P', protein_column=None):
             continue
         if column_aliases:
             standard_names = column_identifier(usrdata.df, column_aliases)
+<<<<<<< HEAD
             protected_names = ['Modified sequence', 'SequenceModi']
             if protein_column:
                 protected_names.append(protein_column)
@@ -2536,6 +2629,22 @@ def set_up(usrdatas, column_aliases, enzyme='trypsin/P', protein_column=None):
                 protein_column_out = None
 
             usrdata.df.rename(columns=rev_mapping,
+=======
+            protected_names = ('Modified sequence')
+            duplicate_cols = list()
+            for k,v in standard_names.items():
+                if k != v and k in usrdata.df.columns:
+                    # duplicate column identified
+                    # for example if Sequence and Annotated Sequence are present,
+                    # and we only want to keep Annotated Sequence, we need to
+                    # remove Sequence because Annotated Sequence will be renamed
+                    # to Sequence, and we will have 2 sequence columns
+                    duplicate_cols.append(k)
+            usrdata.df = usrdata.df.drop(duplicate_cols, axis=1)
+
+            usrdata.df.rename(columns={v: k
+                                       for k,v in standard_names.items()},
+>>>>>>> 7917bf8f89c5ef5c6c9af1609aad844b66bf7b6c
                               inplace=True
             )
             redundant_cols = [x for x in usrdata.df.columns if
@@ -2545,8 +2654,11 @@ def set_up(usrdatas, column_aliases, enzyme='trypsin/P', protein_column=None):
             # print(usrdata.df.memory_usage().sum())
             usrdata.df = usrdata.df.drop(redundant_cols, axis=1)
             # print(usrdata.df.memory_usage().sum())
-
         # usrdata.df = usrdata.populate_base_data()
+        # some data exports include positional info about sequences
+        # such as: [K].xxxxxxxxxxxK.[N]
+        # we want to remove that and only have the exact peptide sequence
+        usrdata.df['Sequence'] = usrdata.df.Sequence.str.extract('(\w{3,})', expand=False)
         usrdata.populate_base_data()
         if 'DeltaMassPPM' not in usrdata.df:
             usrdata.df['DeltaMassPPM'] = 0
