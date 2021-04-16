@@ -1,1 +1,1 @@
-__all__ = ['pygrouper', 'subfuncts', '_version', 'containers', 'auto_grouper']
+__all__ = ["pygrouper", "subfuncts", "_version", "containers", "auto_grouper"]

@@ -12,6 +12,7 @@ from math import ceil
 from warnings import warn
 import warnings
 import six
+
 if six.PY3:
     from configparser import ConfigParser
 elif six.PY2:
@@ -26,127 +27,258 @@ import numpy as np
 import pandas as pd
 from pandas.api.types import CategoricalDtype
 
-from RefProtDB.utils import fasta_dict_from_file
+# from RefProtDB.utils import fasta_dict_from_file
+from pyteomics import parser
+
+parser.expasy_rules["trypsin/P"] = "[KR]"
+parser.expasy_rules["chymotrypsin"] = parser.expasy_rules[
+    "chymotrypsin high specificity"
+]
 
 from . import _version
 from .subfuncts import *
 
 # from ._orig_code import timed
 pd.set_option(
-    "display.width", 170,
-    "display.max_columns", 500,
+    "display.width",
+    170,
+    "display.max_columns",
+    500,
 )
-__author__ = 'Alexander B. Saltzman'
+__author__ = "Alexander B. Saltzman"
 __copyright__ = _version.__copyright__
-__credits__ = ['Alexander B. Saltzman', 'Anna Malovannaya']
-__license__ = 'BSD 3-Clause'
+__credits__ = ["Alexander B. Saltzman", "Anna Malovannaya"]
+__license__ = "BSD 3-Clause"
 __version__ = _version.__version__
-__maintainer__ = 'Alexander B. Saltzman'
-__email__ = 'saltzman@bcm.edu'
-program_title = 'gpGrouper v{}'.format(__version__)
+__maintainer__ = "Alexander B. Saltzman"
+__email__ = "saltzman@bcm.edu"
+program_title = "gpGrouper v{}".format(__version__)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-logfilename = program_title.replace(' ', '_') + '.log'
-logging.basicConfig(filename=logfilename, level=logging.DEBUG)
-logging.info('{}: Initiating {}'.format(datetime.now(), program_title))
 
-SEP = ';'
+logfilename = program_title.replace(" ", "_") + ".log"
+logging.basicConfig(
+    format=("[{levelname}] {message}"),
+    level=logging.INFO,
+    style="{",
+    # level=verbosity_dict[config.verbosity],
+)
 
-labelflag = {'none': 0,  # hard coded number IDs for labels
-             'TMT_126': 1260,
-             'TMT_127_C': 1270,
-             'TMT_127_N': 1271,
-             'TMT_128_C': 1280,
-             'TMT_128_N': 1281,
-             'TMT_129_C': 1290,
-             'TMT_129_N': 1291,
-             'TMT_130_C': 1300,
-             'TMT_130_N': 1301,
-             'TMT_131_N': 1310,
-             'TMT_131_C': 1311,
-             'TMT_132_N': 1321,
-             'TMT_132_C': 1320,
-             'TMT_133_N': 1331,
-             'TMT_133_C': 1330,
-             'TMT_134_N': 1340,
-             'iTRAQ_114': 113,
-             'iTRAQ_114': 114,
-             'iTRAQ_115': 115,
-             'iTRAQ_116': 116,
-             'iTRAQ_117': 117,
-             'iTRAQ_118': 118,
-             'iTRAQ_119': 119,
-             'iTRAQ_121': 121,
+
+logging.info("{}: Initiating {}".format(datetime.now(), program_title))
+
+SEP = ";"
+
+labelflag = {
+    "none": 0,  # hard coded number IDs for labels
+    "TMT_126": 1260,
+    "TMT_127_C": 1270,
+    "TMT_127_N": 1271,
+    "TMT_128_C": 1280,
+    "TMT_128_N": 1281,
+    "TMT_129_C": 1290,
+    "TMT_129_N": 1291,
+    "TMT_130_C": 1300,
+    "TMT_130_N": 1301,
+    "TMT_131_N": 1310,
+    "TMT_131_C": 1311,
+    "TMT_132_N": 1321,
+    "TMT_132_C": 1320,
+    "TMT_133_N": 1331,
+    "TMT_133_C": 1330,
+    "TMT_134_N": 1340,
+    "iTRAQ_114": 113,
+    "iTRAQ_114": 114,
+    "iTRAQ_115": 115,
+    "iTRAQ_116": 116,
+    "iTRAQ_117": 117,
+    "iTRAQ_118": 118,
+    "iTRAQ_119": 119,
+    "iTRAQ_121": 121,
 }
-flaglabel = {v:k for k,v in labelflag.items()}
+flaglabel = {v: k for k, v in labelflag.items()}
 
-E2G_COLS = ['EXPRecNo', 'EXPRunNo', 'EXPSearchNo', 'EXPLabelFLAG', 'AddedBy',
-            # 'CreationTS', 'ModificationTS',
-            'GeneID', 'GeneSymbol', 'Description', 'TaxonID', 'HIDs', 'PeptidePrint',
-            'GPGroup', 'GPGroups_All', 'ProteinGIs', 'ProteinRefs', 'ProteinGI_GIDGroups',
-            'ProteinGI_GIDGroupCount', 'ProteinRef_GIDGroups', 'ProteinRef_GIDGroupCount', 'IDSet', 'IDGroup',
-            'IDGroup_u2g', 'SRA', 'Coverage', 'Coverage_u2g', 'PSMs', 'PSMs_u2g', 'PeptideCount',
-            'PeptideCount_u2g', 'PeptideCount_S', 'PeptideCount_S_u2g', 'AreaSum_u2g_0', 'AreaSum_u2g_all',
-            'AreaSum_max', 'AreaSum_dstrAdj', 'GeneCapacity', 'iBAQ_dstrAdj']
+E2G_COLS = [
+    "EXPRecNo",
+    "EXPRunNo",
+    "EXPSearchNo",
+    "EXPLabelFLAG",
+    "AddedBy",
+    # 'CreationTS', 'ModificationTS',
+    "GeneID",
+    "GeneSymbol",
+    "Description",
+    "TaxonID",
+    "HIDs",
+    "PeptidePrint",
+    "GPGroup",
+    "GPGroups_All",
+    "ProteinGIs",
+    "ProteinRefs",
+    "ProteinGI_GIDGroups",
+    "ProteinGI_GIDGroupCount",
+    "ProteinRef_GIDGroups",
+    "ProteinRef_GIDGroupCount",
+    "IDSet",
+    "IDGroup",
+    "IDGroup_u2g",
+    "SRA",
+    "Coverage",
+    "Coverage_u2g",
+    "PSMs",
+    "PSMs_u2g",
+    "PeptideCount",
+    "PeptideCount_u2g",
+    "PeptideCount_S",
+    "PeptideCount_S_u2g",
+    "AreaSum_u2g_0",
+    "AreaSum_u2g_all",
+    "AreaSum_max",
+    "AreaSum_dstrAdj",
+    "GeneCapacity",
+    "iBAQ_dstrAdj",
+]
 
-DATA_ID_COLS = ['EXPRecNo', 'EXPRunNo', 'EXPSearchNo',
-                'Sequence', 'PSMAmbiguity', 'Modifications',
-                'ActivationType', 'DeltaScore', 'DeltaCn',
-                'Rank', 'SearchEngineRank', 'PrecursorArea',
-                'q_value', 'PEP', 'IonScore',
-                'MissedCleavages', 'IsolationInterference', 'IonInjectTime',
-                'Charge', 'mzDa', 'MHDa',
-                'DeltaMassDa', 'DeltaMassPPM', 'RTmin',
-                'FirstScan', 'LastScan', 'MSOrder', 'MatchedIons',
-                'SpectrumFile', 'AddedBy',
-                'oriFLAG',
-                # 'CreationTS', 'ModificationTS',
-                'GeneID',
-                'GeneIDs_All', 'GeneIDCount_All',
-                'ProteinGIs',
-                'ProteinGIs_All', 'ProteinGICount_All',
-                'ProteinRefs',
-                'ProteinRefs_All', 'ProteinRefCount_All',
-                'HIDs', 'HIDCount_All',
-                'TaxonID', 'TaxonIDs_All', 'TaxonIDCount_All',
-                'PSM_IDG', 'SequenceModi',
-                'SequenceModiCount', 'LabelFLAG',
-                'AUC_UseFLAG', 'PSM_UseFLAG',
-                'Peak_UseFLAG', 'SequenceArea',
+DATA_ID_COLS = [
+    "EXPRecNo",
+    "EXPRunNo",
+    "EXPSearchNo",
+    "Sequence",
+    "PSMAmbiguity",
+    "Modifications",
+    "ActivationType",
+    "DeltaScore",
+    "DeltaCn",
+    "Rank",
+    "SearchEngineRank",
+    "PrecursorArea",
+    "q_value",
+    "PEP",
+    "IonScore",
+    "MissedCleavages",
+    "IsolationInterference",
+    "IonInjectTime",
+    "Charge",
+    "mzDa",
+    "MHDa",
+    "DeltaMassDa",
+    "DeltaMassPPM",
+    "RTmin",
+    "FirstScan",
+    "LastScan",
+    "MSOrder",
+    "MatchedIons",
+    "SpectrumFile",
+    "AddedBy",
+    "oriFLAG",
+    # 'CreationTS', 'ModificationTS',
+    "GeneID",
+    "GeneIDs_All",
+    "GeneIDCount_All",
+    "ProteinGIs",
+    "ProteinGIs_All",
+    "ProteinGICount_All",
+    "ProteinRefs",
+    "ProteinRefs_All",
+    "ProteinRefCount_All",
+    "HIDs",
+    "HIDCount_All",
+    "TaxonID",
+    "TaxonIDs_All",
+    "TaxonIDCount_All",
+    "PSM_IDG",
+    "SequenceModi",
+    "SequenceModiCount",
+    "LabelFLAG",
+    "AUC_UseFLAG",
+    "PSM_UseFLAG",
+    "Peak_UseFLAG",
+    "SequenceArea",
+    "PeptRank",
 ]
 
 
-DATA_QUANT_COLS = ['EXPRecNo', 'EXPRunNo', 'EXPSearchNo', 'LabelFLAG',
-                   'SpectrumFile', 'Charge', 'RTmin',
-                   'GeneID', 'SequenceModi',
-                   'PeptRank',
-                   'ReporterIntensity',
-                   'PrecursorArea', 'PrecursorArea_split', 'SequenceArea', 'PrecursorArea_dstrAdj'
+DATA_QUANT_COLS = [
+    "EXPRecNo",
+    "EXPRunNo",
+    "EXPSearchNo",
+    "LabelFLAG",
+    "FirstScan",
+    "SpectrumFile",
+    "Charge",
+    "GeneID",
+    "SequenceModi",
+    "PeptRank",
+    "ReporterIntensity",
+    "PrecursorArea",
+    "PrecursorArea_split",
+    "SequenceArea",
+    "PrecursorArea_dstrAdj",
 ]
 
-GENE_QUAL_COLS = ['EXPRecNo', 'EXPRunNo', 'EXPSearchNo', 'GeneID', 'LabelFLAG',
-                  'ProteinRef_GIDGroupCount', 'TaxonID', 'SRA', 'GPGroups_All',
-                  'IDGroup', 'IDGroup_u2g', 'ProteinGI_GIDGroupCount', 'HIDs',
-                  'PeptideCount', 'IDSet', 'Coverage_u2g', 'Symbol',
-                  'Coverage', 'PSMs_S_u2g', 'ProteinGIs', 'Description', 'PSMs',
-                  'PeptideCount_S', 'ProteinRefs', 'PSMs_S', 'HomologeneID',
-                  'PeptideCount_u2g', 'GeneSymbol', 'GPGroup',
-                  'PeptideCount_S_u2g', 'PeptidePrint', 'PSMs_u2g', 'GeneCapacity',
-                  'ProteinGI_GIDGroups', 'ProteinRef_GIDGroups'
+GENE_QUAL_COLS = [
+    "EXPRecNo",
+    "EXPRunNo",
+    "EXPSearchNo",
+    "GeneID",
+    "LabelFLAG",
+    "ProteinRef_GIDGroupCount",
+    "TaxonID",
+    "SRA",
+    "GPGroups_All",
+    "IDGroup",
+    "IDGroup_u2g",
+    "ProteinGI_GIDGroupCount",
+    "HIDs",
+    "PeptideCount",
+    "IDSet",
+    "Coverage_u2g",
+    "Symbol",
+    "Coverage",
+    "PSMs_S_u2g",
+    "ProteinGIs",
+    "Description",
+    "PSMs",
+    "PeptideCount_S",
+    "ProteinRefs",
+    "PSMs_S",
+    "HomologeneID",
+    "PeptideCount_u2g",
+    "GeneSymbol",
+    "GPGroup",
+    "PeptideCount_S_u2g",
+    "PeptidePrint",
+    "PSMs_u2g",
+    "GeneCapacity",
+    "ProteinGI_GIDGroups",
+    "ProteinRef_GIDGroups",
 ]
 
-GENE_QUANT_COLS = ['EXPRecNo', 'EXPRunNo', 'EXPSearchNo',
-                   'LabelFLAG', 'GeneID', 'SRA',
-                   'AreaSum_u2g_0', 'AreaSum_u2g_all',
-                   'AreaSum_max', 'AreaSum_dstrAdj',
-                   'iBAQ_dstrAdj', ]
+GENE_QUANT_COLS = [
+    "EXPRecNo",
+    "EXPRunNo",
+    "EXPSearchNo",
+    "LabelFLAG",
+    "GeneID",
+    "SRA",
+    "AreaSum_u2g_0",
+    "AreaSum_u2g_all",
+    "AreaSum_max",
+    "AreaSum_dstrAdj",
+    "iBAQ_dstrAdj",
+]
 
 
 # only SequenceArea and PrecursorArea_dstrAdj?
 
-_EXTRA_COLS = ['LastScan', 'MSOrder', 'MatchedIons']  # these columns are not required to be in the output data columns
+_EXTRA_COLS = [
+    "LastScan",
+    "MSOrder",
+    "MatchedIons",
+]  # these columns are not required to be in the output data columns
 
 try:
     from PIL import Image, ImageFont, ImageDraw
+
     imagetitle = True
 except ImportError:
     imagetitle = False
@@ -156,24 +288,29 @@ if six.PY2:
     class DirEntry:
         def __init__(self, f):
             self.f = f
+
         def is_file(self):
             return os.path.isfile(self.f)
+
         def is_dir(self):
             return os.path.isdir(self.f)
+
         @property
         def name(self):
             return self.f
 
-    def scandir(path='.'):
-        files = os.listdir('.')
+    def scandir(path="."):
+        files = os.listdir(".")
         for f in files:
             yield DirEntry(f)
 
     os.scandir = scandir
 
+
 def _apply_df(input_args):
     df, func, i, func_args, kwargs = input_args
     return i, df.apply(func, args=(func_args), **kwargs)
+
 
 def apply_by_multiprocessing(df, func, workers=1, func_args=None, **kwargs):
     """
@@ -182,18 +319,36 @@ def apply_by_multiprocessing(df, func, workers=1, func_args=None, **kwargs):
     if func_args is None:
         func_args = tuple()
 
-    if workers == 1 or not hasattr(os, 'fork'):
-        result = _apply_df((df, func, 0, func_args, kwargs,))
+    if workers == 1 or not hasattr(os, "fork"):
+        result = _apply_df(
+            (
+                df,
+                func,
+                0,
+                func_args,
+                kwargs,
+            )
+        )
         return result[1]
 
     workers = min(workers, len(df))  # edge case where df has less rows than workers
-    workers = max(workers, 1)        # has to be at least 1
+    workers = max(workers, 1)  # has to be at least 1
 
     # pool = multiprocessing.Pool(processes=workers)
     with multiprocessing.Pool(processes=workers) as pool:
 
-        result = pool.map(_apply_df, [(d, func, i, func_args, kwargs,)
-                                      for i, d in enumerate(np.array_split(df, workers))]
+        result = pool.map(
+            _apply_df,
+            [
+                (
+                    d,
+                    func,
+                    i,
+                    func_args,
+                    kwargs,
+                )
+                for i, d in enumerate(np.array_split(df, workers))
+            ],
         )
         # pool.close()
 
@@ -202,19 +357,19 @@ def apply_by_multiprocessing(df, func, workers=1, func_args=None, **kwargs):
     return pd.concat([x[1] for x in result])
 
 
-def quick_save(df,name='df_snapshot.p', path=None, q=False):
+def quick_save(df, name="df_snapshot.p", path=None, q=False):
     import pickle
-    #import RefSeqInfo
+
+    # import RefSeqInfo
 
     if path:
-        name = path+name
-    #df.to_csv('test_matched.tab', index=False, sep='\t')
-    pickle.dump(df, open(name, 'wb'))
-    print('Pickling...')
+        name = path + name
+    # df.to_csv('test_matched.tab', index=False, sep='\t')
+    pickle.dump(df, open(name, "wb"))
+    print("Pickling...")
     if q:
-        print('Exiting prematurely')
+        print("Exiting prematurely")
         sys.exit(0)
-
 
 
 # @lru_cache(maxsize=None)
@@ -230,16 +385,15 @@ def quick_save(df,name='df_snapshot.p', path=None, q=False):
 #     return '|'.join(str(x) for x in matches.index)
 
 
-def map_to_gene(usrdata, column, identifier='ref'):
+def map_to_gene(usrdata, column, identifier="ref"):
     """
     map protein gi / ref accession directly to gene, bypassing fasta file searching
     """
     if column not in usrdata.df:
-        err = '`{}` not in input.'.format(column)
+        err = "`{}` not in input.".format(column)
         usrdata.EXIT_CODE = 0
-        usrdata.ERROR = '`{}` not in input.'.format(column)
-        return ''
-
+        usrdata.ERROR = "`{}` not in input.".format(column)
+        return ""
 
     # try:
     #     import mygene
@@ -251,22 +405,25 @@ def map_to_gene(usrdata, column, identifier='ref'):
 
         try:
             import mygene
+
             geneinfo = mygene.MyGeneInfo()
         except ImportError:
-            warn('MyGeneInfo not installed, cannot connect to external database')
+            warn("MyGeneInfo not installed, cannot connect to external database")
             geneinfo = None
 
         def __init__(self):
             self.saved = dict()
 
-        def __call__(self, queries, scopes='refseq,accession'):
+        def __call__(self, queries, scopes="refseq,accession"):
 
             if self.geneinfo is None:
                 return
 
             subqueries = set(queries) - set(self.saved.keys())
             if subqueries:
-                results = self.geneinfo.querymany(subqueries, scopes=scopes, as_dataframe=True)
+                results = self.geneinfo.querymany(
+                    subqueries, scopes=scopes, as_dataframe=True
+                )
             else:
                 results = pd.DataFrame()
             # results = results.drop_duplicates(on='entrezgene')
@@ -278,35 +435,36 @@ def map_to_gene(usrdata, column, identifier='ref'):
             saved_queries = set(queries) - set(subqueries)
             newrows = list()
             for s in saved_queries:
-                newrows.append( self.saved[s] )
+                newrows.append(self.saved[s])
 
-            results = pd.concat( [results, pd.DataFrame(newrows, index=saved_queries)] )
+            results = pd.concat([results, pd.DataFrame(newrows, index=saved_queries)])
 
             return results
 
     queryexternal = QueryExternal()
 
-
-    if identifier not in ('ref', 'gi'):
-        raise ValueError('must be either `ref` or `gi`. Uniprot support coming...')
-
-
+    if identifier not in ("ref", "gi"):
+        raise ValueError("must be either `ref` or `gi`. Uniprot support coming...")
 
     from glob import glob
-    MAPPING = os.path.join(os.path.dirname(os.path.realpath(__file__)),
-                           'mappings',
-                           'human_mouse_mapping_2019May.tsv')
 
-    OTHER_MAPPINGS = glob(os.path.join(os.path.dirname(os.path.realpath(__file__)),
-                                       'mappings',
-                                       './mapping*.tsv')
+    MAPPING = os.path.join(
+        os.path.dirname(os.path.realpath(__file__)),
+        "mappings",
+        "human_mouse_mapping_2019May.tsv",
+    )
+
+    OTHER_MAPPINGS = glob(
+        os.path.join(
+            os.path.dirname(os.path.realpath(__file__)), "mappings", "./mapping*.tsv"
+        )
     )
 
     # MAPPING = os.path.join(os.path.dirname(os.path.realpath(__file__)),
     #                        './human_mouse_mapping_2019Jan.tsv')
     global database
     database = pd.read_table(MAPPING, dtype=str)
-    database['capacity'] = database.capacity.astype(float)
+    database["capacity"] = database.capacity.astype(float)
 
     # load other mappings..
     if OTHER_MAPPINGS:
@@ -317,63 +475,66 @@ def map_to_gene(usrdata, column, identifier='ref'):
 
     MAX_DATABASE_INDEX = database.index.max()
 
-
-
-    if identifier == 'ref':
-        pat = r'(?<=ref\|)(.*)(?=\|)'
-    elif identifier == 'gi':
-        pat = r'(?<=gi\|)(.*)(?=\|)'
+    if identifier == "ref":
+        pat = r"(?<=ref\|)(.*)(?=\|)"
+    elif identifier == "gi":
+        pat = r"(?<=gi\|)(.*)(?=\|)"
     regex = re.compile(pat)
 
-
     @lru_cache(maxsize=None)
-    def _map_to_gene(proteins, sep=';', regex=None):
+    def _map_to_gene(proteins, sep=";", regex=None):
 
-        global database # because cannot hash it
+        global database  # because cannot hash it
 
         protein_ids = list()
         # for protein in row[column].split(sep):
         for protein in proteins.split(sep):
             reg_res = regex.search(protein)
             if reg_res is None:
-                reg_res = protein.strip() # try assuming it is just identifiers
+                reg_res = protein.strip()  # try assuming it is just identifiers
             else:
                 reg_res = reg_res.group()
-            protein_ids.append( reg_res )
+            protein_ids.append(reg_res)
 
-        matches = database[ database[identifier].isin(protein_ids) ]
-        nomatches = [ x for x in set(protein_ids) - set(matches[identifier]) if x ]
-
+        matches = database[database[identifier].isin(protein_ids)]
+        nomatches = [x for x in set(protein_ids) - set(matches[identifier]) if x]
 
         # if nomatches:
-        if nomatches and identifier != 'gi': # GI doesn't work
+        if nomatches and identifier != "gi":  # GI doesn't work
             nomatch_res = queryexternal(nomatches)
 
-
-            todrop = ['_score', '_id', 'name', 'notfound']
+            todrop = ["_score", "_id", "name", "notfound"]
             todrop = [x for x in todrop if x in nomatch_res]
-            if 'notfound' in nomatch_res: # this column is added for unfound queries
-                ixs = nomatch_res[ nomatch_res['notfound'] != True ].index
+            if "notfound" in nomatch_res:  # this column is added for unfound queries
+                ixs = nomatch_res[nomatch_res["notfound"] != True].index
             else:
                 ixs = nomatch_res.index
 
             # if not nomatch_res.empty:
-            nomatch_res = (nomatch_res.loc[ixs]
-                        .drop(todrop, axis=1)
-                        .reset_index()
-                        .rename(columns={'entrezgene':'geneid', 'taxid':'taxon', 'query': identifier})
-                        )
-            nomatch_res.index = np.arange( database.index.max()+1, database.index.max()+len(nomatch_res)+1 )
+            nomatch_res = (
+                nomatch_res.loc[ixs]
+                .drop(todrop, axis=1)
+                .reset_index()
+                .rename(
+                    columns={
+                        "entrezgene": "geneid",
+                        "taxid": "taxon",
+                        "query": identifier,
+                    }
+                )
+            )
+            nomatch_res.index = np.arange(
+                database.index.max() + 1, database.index.max() + len(nomatch_res) + 1
+            )
 
             if not nomatch_res.empty:
                 # not very efficient...
                 database = database.append(nomatch_res)
 
             # now get the indices again...
-            matches = database[ database[identifier].isin(protein_ids) ]
+            matches = database[database[identifier].isin(protein_ids)]
 
-
-        return '|'.join(str(x) for x in matches.index)
+        return "|".join(str(x) for x in matches.index)
 
         # geneids = SEP.join(str(x) for x in matches.geneid.unique())
         # return geneids
@@ -389,58 +550,62 @@ def map_to_gene(usrdata, column, identifier='ref'):
     # )
     # usrdata.df['metadatainfo'] = info
 
-    metadatainfo = usrdata.df[column].fillna('').apply(_map_to_gene, sep=';', regex=regex)
+    metadatainfo = (
+        usrdata.df[column].fillna("").apply(_map_to_gene, sep=";", regex=regex)
+    )
     # metadatainfo, nonmatch_res = list(zip(*res))
-    usrdata.df['metadatainfo'] = metadatainfo
+    usrdata.df["metadatainfo"] = metadatainfo
 
-
-    added_entries = database.loc[MAX_DATABASE_INDEX+1:]
+    added_entries = database.loc[MAX_DATABASE_INDEX + 1 :]
 
     if not added_entries.empty:
 
-        NEW_DB = os.path.join(os.path.dirname(os.path.realpath(__file__)),
-                            'mappings',
-                            'mapping_{}.tsv'.format(datetime.now().toordinal())
+        NEW_DB = os.path.join(
+            os.path.dirname(os.path.realpath(__file__)),
+            "mappings",
+            "mapping_{}.tsv".format(datetime.now().toordinal()),
         )
 
-        added_entries.to_csv(NEW_DB, index=False, sep='\t')
-        print('Wrote new mapping file with {} entries'.format(added_entries.pipe(len)))
-
+        added_entries.to_csv(NEW_DB, index=False, sep="\t")
+        print("Wrote new mapping file with {} entries".format(added_entries.pipe(len)))
 
     # usrdata.df['metadatainfo'], nomatch_res = list(zip(usrdata.df.head()[column].apply(_map_to_gene, sep=';', regex=regex))
 
     # usrdata.df['metadatainfo'], nomatch_res = usrdata.df[column].apply(_map_to_gene, sep=';', regex=regex)
 
-    database['taxon'] = database['taxon'].fillna(-1).apply(int).apply(str).replace('-1', '')
+    database["taxon"] = (
+        database["taxon"].fillna(-1).apply(int).apply(str).replace("-1", "")
+    )
 
     extract_peptideinfo(usrdata, database)
     # usrdata.df['miscuts_not']
     # usrdata.df['MissedCleavages'] = -1
 
-    usrdata.to_log('Mapping proteins to genes directly, not using database search.')
+    usrdata.to_log("Mapping proteins to genes directly, not using database search.")
 
     return database
 
 
 def _get_rawfile_info(path, spectraf):
     if path is None:
-        path = '.'
+        path = "."
     if not os.path.isdir(path):
-        return ('not found, check rawfile path', 'not found')
+        return ("not found, check rawfile path", "not found")
     for f in os.listdir(path):
         if f == spectraf:
-            rawfile = os.path.abspath(os.path.join(path,f))
+            rawfile = os.path.abspath(os.path.join(path, f))
             break
     else:
-        return ('not found', 'not found')
+        return ("not found", "not found")
 
-    fstats   = os.stat(rawfile)
+    fstats = os.stat(rawfile)
     mod_date = datetime.fromtimestamp(fstats.st_mtime).strftime("%m/%d/%Y %H:%M:%S")
-    size     = byte_formatter(fstats.st_size)
+    size = byte_formatter(fstats.st_size)
     return (size, mod_date)
 
+
 def _spectra_summary(spectraf, data):
-    """ Calculates metadata per spectra file.
+    """Calculates metadata per spectra file.
     The return order is as follows:
 
     -minimum RT_min
@@ -456,22 +621,35 @@ def _spectra_summary(spectraf, data):
     -PSM Count
     -median DeltaMassPPM
     """
-    data      = data[data.SpectrumFile==spectraf]
+    data = data[data.SpectrumFile == spectraf]
 
-    RT_min       = data.RTmin.min()
-    RT_max       = data.RTmin.max()
+    RT_min = data.RTmin.min()
+    RT_max = data.RTmin.max()
     IonScore_min = data.IonScore.min()
     IonScore_max = data.IonScore.max()
-    q_min        = data.q_value.min()
-    q_max        = data.q_value.max()
-    PEP_min      = data.PEP.min()
-    PEP_max      = data.PEP.max()
-    area_min     = data[data.PrecursorArea!=0].PrecursorArea.min()
-    area_max     = data.PrecursorArea.max()
-    count    = len(data[data.PSM_UseFLAG==1])
+    q_min = data.q_value.min()
+    q_max = data.q_value.max()
+    PEP_min = data.PEP.min()
+    PEP_max = data.PEP.max()
+    area_min = data[data.PrecursorArea != 0].PrecursorArea.min()
+    area_max = data.PrecursorArea.max()
+    count = len(data[data.PSM_UseFLAG == 1])
     dmass_median = data.DeltaMassPPM.median()
-    return(RT_min, RT_max, IonScore_min, IonScore_max, q_min, q_max,
-           PEP_min, PEP_max, area_min, area_max, count, dmass_median)
+    return (
+        RT_min,
+        RT_max,
+        IonScore_min,
+        IonScore_max,
+        q_min,
+        q_max,
+        PEP_min,
+        PEP_max,
+        area_min,
+        area_max,
+        count,
+        dmass_median,
+    )
+
 
 def spectra_summary(usrdata, psm_data):
     """Summaries the spectral files included in an analysis.
@@ -489,34 +667,46 @@ def spectra_summary(usrdata, psm_data):
     msfdata = pd.DataFrame()
     # msfdata['RawFileName']    = list(set(usrdata.df.SpectrumFile.tolist()))
     # msfdata['RawFileName']    = sorted(usrdata.df.SpectrumFile.unique())
-    msfdata['RawFileName']    = sorted(psm_data.SpectrumFile.unique())
-    msfdata['EXPRecNo']       = usrdata.recno
-    msfdata['EXPRunNo']       = usrdata.runno
-    msfdata['EXPSearchNo']    = usrdata.searchno
-    msfdata['AddedBy']        = usrdata.added_by
-    msfdata['CreationTS']     = datetime.now().strftime("%m/%d/%Y %H:%M:%S")
-    msfdata['ModificationTS'] = datetime.now().strftime("%m/%d/%Y %H:%M:%S")
+    msfdata["RawFileName"] = sorted(psm_data.SpectrumFile.unique())
+    msfdata["EXPRecNo"] = usrdata.recno
+    msfdata["EXPRunNo"] = usrdata.runno
+    msfdata["EXPSearchNo"] = usrdata.searchno
+    msfdata["AddedBy"] = usrdata.added_by
+    msfdata["CreationTS"] = datetime.now().strftime("%m/%d/%Y %H:%M:%S")
+    msfdata["ModificationTS"] = datetime.now().strftime("%m/%d/%Y %H:%M:%S")
 
-    summary_info = msfdata.apply(lambda x:
-                        _spectra_summary(x['RawFileName'],
-                                        # usrdata.df),
-                                         psm_data),
-                        axis=1)
+    summary_info = msfdata.apply(
+        lambda x: _spectra_summary(
+            x["RawFileName"],
+            # usrdata.df),
+            psm_data,
+        ),
+        axis=1,
+    )
 
-    (msfdata['RTmin_min'], msfdata['RTmin_max'], msfdata['IonScore_min'],
-     msfdata['IonScore_max'], msfdata['qValue_min'], msfdata['qValue_max'],
-     msfdata['PEP_min'], msfdata['PEP_max'], msfdata['Area_min'],
-     msfdata['Area_max'], msfdata['PSMCount'],
-     msfdata['DeltaMassPPM_med']) = zip(*summary_info)
+    (
+        msfdata["RTmin_min"],
+        msfdata["RTmin_max"],
+        msfdata["IonScore_min"],
+        msfdata["IonScore_max"],
+        msfdata["qValue_min"],
+        msfdata["qValue_max"],
+        msfdata["PEP_min"],
+        msfdata["PEP_max"],
+        msfdata["Area_min"],
+        msfdata["Area_max"],
+        msfdata["PSMCount"],
+        msfdata["DeltaMassPPM_med"],
+    ) = zip(*summary_info)
 
-    rawfile_info = msfdata.apply(lambda x:
-                                    _get_rawfile_info(usrdata.rawfiledir,
-                                                      x['RawFileName']),
-                                 axis=1)
+    rawfile_info = msfdata.apply(
+        lambda x: _get_rawfile_info(usrdata.rawfiledir, x["RawFileName"]), axis=1
+    )
 
-    msfdata['RawFileSize'], msfdata['RawFileTS'] = zip(*rawfile_info)
+    msfdata["RawFileSize"], msfdata["RawFileTS"] = zip(*rawfile_info)
 
     return msfdata
+
 
 def get_gid_ignore_list(inputfile):
     """Input a file with a list of geneids to ignore when normalizing across taxa
@@ -526,50 +716,44 @@ def get_gid_ignore_list(inputfile):
     """
     # Don't convert GIDs to ints,
     # GIDs are not ints for the input data
-    return [x.strip() for x in open(inputfile, 'r') if
-            not x.strip().startswith('#')]
+    return [x.strip() for x in open(inputfile, "r") if not x.strip().startswith("#")]
+
 
 def _format_peptideinfo(row):
     if len(row) == 0:
-        return ('', 0, '', 0, '', 0, '', 0, '', 0, ())
+        return ("", 0, "", 0, "", 0, "", 0, "", 0, ())
 
     def filterfunc(x):
-        return any([
-            pd.isna(x) or
-            x == -1 or
-            x == '-1' or
-            x == ''
-        ])
+        return any([pd.isna(x) or x == -1 or x == "-1" or x == ""])
 
     result = (
         # ','.join(row['GeneID'].dropna().unique()),
-        SEP.join(str(x) for x in set(row['geneid']) if not filterfunc(x)),
-        row['geneid'].replace('', np.nan).nunique(dropna=True),
-
+        SEP.join(str(x) for x in set(row["geneid"]) if not filterfunc(x)),
+        row["geneid"].replace("", np.nan).nunique(dropna=True),
         # ','.join(row['TaxonID'].dropna().unique()),
-        SEP.join(str(x) for x in set(row['taxon']) if not filterfunc(x)),
-        row['taxon'].replace('', np.nan).replace('-1', np.nan).nunique(dropna=True),
-
+        SEP.join(str(x) for x in set(row["taxon"]) if not filterfunc(x)),
+        row["taxon"].replace("", np.nan).replace("-1", np.nan).nunique(dropna=True),
         # ','.join(row['ProteinGI'].dropna().unique()),
-        SEP.join(str(x) for x in set(row['gi']) if not filterfunc(x)),
-        row['gi'].replace('', np.nan).replace('-1', np.nan).nunique(dropna=True),
-
-        SEP.join(str(x) for x in set(row['ref'])),
-        row['ref'].replace('', np.nan).replace('-1', np.nan).nunique(dropna=True),
-
+        SEP.join(str(x) for x in set(row["gi"]) if not filterfunc(x)),
+        row["gi"].replace("", np.nan).replace("-1", np.nan).nunique(dropna=True),
+        SEP.join(str(x) for x in set(row["ref"])),
+        row["ref"].replace("", np.nan).replace("-1", np.nan).nunique(dropna=True),
         # ','.join(row['HomologeneID'].dropna().unique()),
-        SEP.join(str(x) for x in set(row['homologene']) if not filterfunc(x)),
-        row['homologene'].replace('', np.nan).replace('-1', np.nan).nunique(dropna=True),
-
-        SEP.join(str(x) for x in row['capacity'] if not filterfunc(x)),
+        SEP.join(str(x) for x in set(row["homologene"]) if not filterfunc(x)),
+        row["homologene"]
+        .replace("", np.nan)
+        .replace("-1", np.nan)
+        .nunique(dropna=True),
+        SEP.join(str(x) for x in row["capacity"] if not filterfunc(x)),
         # tuple(row['capacity']),
-          # row['capacity'].mean(),
-
+        # row['capacity'].mean(),
     )
     return result
 
+
 def _extract_peptideinfo(row, database):
     return _format_peptideinfo(database.loc[row])
+
 
 def combine_coverage(start_end):
 
@@ -580,20 +764,23 @@ def combine_coverage(start_end):
     while ix < len(start_end):
         try:
             entry = start_end[ix]
-            next_entry = start_end[ix+1]
-        except IndexError: # done
+            next_entry = start_end[ix + 1]
+        except IndexError:  # done
             break
         if entry[1] >= next_entry[0] and entry[1] <= next_entry[1]:
             start_end[ix][1] = next_entry[1]
-            start_end.pop(ix+1)
+            start_end.pop(ix + 1)
         else:
             ix += 1
 
     return start_end
 
+
 def _calc_coverage(seqs, pepts):
 
-    pepts = sorted(pepts, key=lambda x: min(y+len(x) for y in [s.find(x) for s in seqs]))
+    pepts = sorted(
+        pepts, key=lambda x: min(y + len(x) for y in [s.find(x) for s in seqs])
+    )
 
     coverages = list()
     for s in seqs:
@@ -620,21 +807,22 @@ def _calc_coverage(seqs, pepts):
                         continue
 
                 if start_id != end_id:
-                    start_end.append( [ start_id, end_id ] )
+                    start_end.append([start_id, end_id])
                     # start_end = combine_coverage(start_end)  # only need to do this if we updated this list
                 # coverage += end_id-start_id
                 mark = s.find(pept.upper(), start)
 
         start_end = combine_coverage(start_end)
-        coverage = np.sum([ x[1] - x[0] for x in start_end ])
-        coverages.append( coverage/len(s) )
+        coverage = np.sum([x[1] - x[0] for x in start_end])
+        coverages.append(coverage / len(s))
         # sum(y-x)
 
     if coverages:
         return np.mean(coverages)
     else:
-        print('Warning, GeneID', row['GeneID'], 'has a coverage of 0')
+        print("Warning, GeneID", row["GeneID"], "has a coverage of 0")
         return 0
+
 
 def calc_coverage_axis(row, fa, psms):
     """
@@ -642,61 +830,90 @@ def calc_coverage_axis(row, fa, psms):
     reference fasta (fa) and peptide evidence (psms)
     """
 
-    if row['GeneID'] == '-1':  # reserved for no GeneID match
+    if row["GeneID"] == "-1":  # reserved for no GeneID match
         return 0, 0
 
-    seqs = fa[fa.geneid == row['GeneID']]['sequence'].tolist()
-    if len(seqs) == 0: # mismatch
-        warn('When calculating coverage, No sequence for GeneID {} not found in fasta file'.format(row['GeneID']))
+    seqs = fa[fa.geneid == row["GeneID"]]["sequence"].tolist()
+    if len(seqs) == 0:  # mismatch
+        warn(
+            "When calculating coverage, No sequence for GeneID {} not found in fasta file".format(
+                row["GeneID"]
+            )
+        )
         return 0, 0
-    pepts = row['PeptidePrint'].split('_')
+    pepts = row["PeptidePrint"].split("_")
 
-    u2g_pepts = psms[ (psms.GeneID == row['GeneID']) & (psms.GeneIDCount_All == 1) ].Sequence.unique()
+    u2g_pepts = psms[
+        (psms.GeneID == row["GeneID"]) & (psms.GeneIDCount_All == 1)
+    ].Sequence.unique()
 
-    return _calc_coverage(seqs, pepts), _calc_coverage(seqs, u2g_pepts) if len(u2g_pepts) > 0 else 0
+    return (
+        _calc_coverage(seqs, pepts),
+        _calc_coverage(seqs, u2g_pepts) if len(u2g_pepts) > 0 else 0,
+    )
 
 
 def calc_coverage(df, fa, psms):
 
-    res = df.pipe(apply_by_multiprocessing,
-                  calc_coverage_axis,
-                  workers=WORKERS,
-                  # func_args=(fa.fillna(''), psms),
-                  func_args=(fa, psms),
-                  axis=1
+    res = df.pipe(
+        apply_by_multiprocessing,
+        calc_coverage_axis,
+        workers=WORKERS,
+        # func_args=(fa.fillna(''), psms),
+        func_args=(fa, psms),
+        axis=1,
     )
     # df['Coverage'], df['Coverage_u2g'] = list(zip(res))
-    df['Coverage'], df['Coverage_u2g'] = list(zip(*res))
+    df["Coverage"], df["Coverage_u2g"] = list(zip(*res))
     return df
 
 
 def extract_peptideinfo(usrdata, database):
-    filter_int = partial(filter, lambda x : x.isdigit())
+    filter_int = partial(filter, lambda x: x.isdigit())
     to_int = partial(map, int)
-    ixs = (usrdata.df.metadatainfo.str.strip('|')
-           .str.split('|')
-           .apply(filter_int)
-           .apply(to_int)
-           .apply(list)
-           # .apply(pd.Series)
-           # .stack()
-           # .to_frame()
-           )
+    ixs = (
+        usrdata.df.metadatainfo.str.strip("|")
+        .str.split("|")
+        .apply(filter_int)
+        .apply(to_int)
+        .apply(list)
+        # .apply(pd.Series)
+        # .stack()
+        # .to_frame()
+    )
 
     # info = ixs.apply(lambda x : _format_peptideinfo(database.loc[x])).apply(pd.Series)
-    info = ixs.pipe(apply_by_multiprocessing,
-                    _extract_peptideinfo,
-                    func_args=(database,),
-                    workers=WORKERS,
+    info = ixs.pipe(
+        apply_by_multiprocessing,
+        _extract_peptideinfo,
+        func_args=(database,),
+        workers=WORKERS,
     ).apply(pd.Series)
 
-    info.columns = ['GeneIDs_All', 'GeneIDCount_All', 'TaxonIDs_All', 'TaxonIDCount_All', 'ProteinGIs_All',
-                    'ProteinGICount_All', 'ProteinRefs_All', 'ProteinRefCount_All', 'HIDs', 'HIDCount_All',
-                    'GeneCapacities']
-    for col in ('TaxonIDs_All', 'ProteinGIs_All', 'ProteinGICount_All',
-                'ProteinRefs_All', 'ProteinRefCount_All', 'HIDs', 'HIDCount_All'):
-        info[col] = info[col].astype('category')
-    info['TaxonIDCount_All'] = info['TaxonIDCount_All'].astype(np.int16)
+    info.columns = [
+        "GeneIDs_All",
+        "GeneIDCount_All",
+        "TaxonIDs_All",
+        "TaxonIDCount_All",
+        "ProteinGIs_All",
+        "ProteinGICount_All",
+        "ProteinRefs_All",
+        "ProteinRefCount_All",
+        "HIDs",
+        "HIDCount_All",
+        "GeneCapacities",
+    ]
+    for col in (
+        "TaxonIDs_All",
+        "ProteinGIs_All",
+        "ProteinGICount_All",
+        "ProteinRefs_All",
+        "ProteinRefCount_All",
+        "HIDs",
+        "HIDCount_All",
+    ):
+        info[col] = info[col].astype("category")
+    info["TaxonIDCount_All"] = info["TaxonIDCount_All"].astype(np.int16)
 
     usrdata.df = usrdata.df.join(info)
     # (usrdata.df['GeneIDs_All'],
@@ -715,75 +932,82 @@ def extract_peptideinfo(usrdata, database):
 
     return 0
 
+
 def gene_mapper(df, other_col=None):
 
     if other_col is None or other_col not in df.columns:
         raise ValueError("Must specify other column")
-    groupdf = (df[['geneid', other_col]]
-               .drop_duplicates()
-               .groupby('geneid')
-    )
+    groupdf = df[["geneid", other_col]].drop_duplicates().groupby("geneid")
 
     # d = {k: SEP.join(filter(None, str(v))) for k, v in groupdf[other_col]}
     d = {k: SEP.join(filter(None, map(str, v))) for k, v in groupdf[other_col]}
 
     return d
 
+
 def gene_taxon_mapper(df):
     """Returns a dictionary with mapping:
     gene -> taxon
     Input is the metadata extracted previously"""
-    return gene_mapper(df, 'taxon')
+    return gene_mapper(df, "taxon")
+
 
 def gene_symbol_mapper(df):
     """Returns a dictionary with mapping:
     gene -> taxon
     Input is the metadata extracted previously"""
-    return gene_mapper(df, 'symbol')
+    return gene_mapper(df, "symbol")
+
 
 def gene_desc_mapper(df):
     """Returns a dictionary with mapping:
     gene -> taxon
     Input is the metadata extracted previously"""
-    return gene_mapper(df, 'description')
+    return gene_mapper(df, "description")
+
 
 def gene_hid_mapper(df):
     """Returns a dictionary with mapping:
     gene -> taxon
     Input is the metadata extracted previously"""
-    return gene_mapper(df, 'homologene')
+    return gene_mapper(df, "homologene")
+
 
 def gene_protgi_mapper(df):
     """Returns a dictionary with mapping:
     gene -> taxon
     Input is the metadata extracted previously"""
-    return gene_mapper(df, 'gi')
+    return gene_mapper(df, "gi")
+
 
 def gene_protref_mapper(df):
     """Returns a dictionary with mapping:
     gene -> taxon
     Input is the metadata extracted previously"""
-    return gene_mapper(df, 'ref')
-
-
+    return gene_mapper(df, "ref")
 
 
 def assign_IDG(df, filtervalues=None):
     filtervalues = filtervalues or dict()
-    ion_score_bins = filtervalues.get('ion_score_bins', (10, 20, 30))
-    df['PSM_IDG'] = pd.cut(df['IonScore'],
-                               # bins=(0, *ion_score_bins, np.inf),
-                               bins=(0,) + tuple(ion_score_bins) + (np.inf,),
-                               labels=[7, 5, 3, 1], include_lowest=True,
-                               right=False).astype('int')
-    df.loc[ df['q_value'] > .01, 'PSM_IDG' ] += 1
-    df.loc[ (df['IonScore'].isna() | df['q_value'].isna()), 'PSM_IDG'] = 9
+    ion_score_bins = filtervalues.get("ion_score_bins", (10, 20, 30))
+    df["PSM_IDG"] = pd.cut(
+        df["IonScore"],
+        # bins=(0, *ion_score_bins, np.inf),
+        bins=(-np.inf,) + tuple(ion_score_bins) + (np.inf,),
+        labels=[7, 5, 3, 1],
+        include_lowest=True,
+        right=False,
+    ).astype("int")
+    df.loc[df["q_value"] > 0.01, "PSM_IDG"] += 1
+    df.loc[(df["IonScore"].isna() | df["q_value"].isna()), "PSM_IDG"] = 9
     return df
 
-def make_seqlower(usrdata, col='Sequence'):
+
+def make_seqlower(usrdata, col="Sequence"):
     """Make a new column called sequence_lower from a DataFrame"""
-    usrdata['sequence_lower'] = usrdata[col].str.lower()
+    usrdata["sequence_lower"] = usrdata[col].str.lower()
     return
+
 
 def peptidome_matcher(usrdata, ref_dict):
 
@@ -791,66 +1015,97 @@ def peptidome_matcher(usrdata, ref_dict):
         return usrdata
     ref_dict_filtered = ref_dict
     pmap = partial(map, str)
-    result = (usrdata.Sequence.str.upper().map(ref_dict)
-              .fillna('')
-              .map(pmap)
-              .map('|'.join)
-              .add('|')
-              )
-    usrdata['metadatainfo'] += result
+    result = (
+        usrdata.Sequence.str.upper()
+        .map(ref_dict)
+        .fillna("")
+        .map(pmap)
+        .map("|".join)
+        .add("|")
+    )
+    usrdata["metadatainfo"] += result
     return usrdata
 
+
 def redundant_peaks(usrdata):
-    """ Remove redundant, often ambiguous peaks by keeping the peak
+    """Remove redundant, often ambiguous peaks by keeping the peak
     with the highest ion score"""
-    peaks = usrdata.sort_values(by='IonScore', ascending=False).\
-            drop_duplicates(subset=['SpectrumFile','SequenceModi', 'Charge', 'PrecursorArea'])
-    peaks['Peak_UseFLAG'] = 1
+    peaks = usrdata.sort_values(by="IonScore", ascending=False).drop_duplicates(
+        subset=["SpectrumFile", "SequenceModi", "Charge", "PrecursorArea"]
+    )
+    peaks["Peak_UseFLAG"] = 1
     # peaks['Peak_UseFLAG'] = True
-    usrdata = usrdata.join(peaks['Peak_UseFLAG'])
-    usrdata['Peak_UseFLAG'] = usrdata.Peak_UseFLAG.fillna(0).astype(np.int8)
+    usrdata = usrdata.join(peaks["Peak_UseFLAG"])
+    usrdata["Peak_UseFLAG"] = usrdata.Peak_UseFLAG.fillna(0).astype(np.int8)
+
+    _nredundant = len(usrdata) - len(peaks)
     # usrdata['Peak_UseFLAG'] = usrdata.Peak_UseFLAG.fillna(False)
-    print('Redundant peak areas removed : ', len(usrdata)-len(peaks))
+    logging.info(f"Redundant peak areas removed : {_nredundant}")
     return usrdata
+
 
 def sum_area(df):
     """Sum the area of similar peaks
     New column SequenceArea is created
     """
-    df['Sequence_set'] = df['Sequence'].apply(lambda x: tuple(set(list(x))))
-    summed_area = (df.query('Peak_UseFLAG==1')
-                   # .filter(items=['SequenceModi', 'Charge', 'PrecursorArea'])
-                   .groupby(['SequenceModi', 'Charge'])
-                   .agg({'PrecursorArea_split': 'sum'})
-                   .reset_index()
-                   .rename(columns={'PrecursorArea_split': 'SequenceArea'})
+    df["Sequence_set"] = df["Sequence"].apply(lambda x: tuple(set(list(x))))
+    summed_area = (
+        df.query("Peak_UseFLAG==1")
+        # .filter(items=['SequenceModi', 'Charge', 'PrecursorArea'])
+        .groupby(["SequenceModi", "Charge"])
+        .agg({"PrecursorArea_split": "sum"})
+        .reset_index()
+        .rename(columns={"PrecursorArea_split": "SequenceArea"})
     )
-    df = df.merge(summed_area, how='left', on=['SequenceModi', 'Charge'])
+    df = df.merge(summed_area, how="left", on=["SequenceModi", "Charge"])
     return df
+
 
 def auc_reflagger(df):
-    """Remove duplicate sequence areas
-    """
-    #usrdata['Sequence_set'] = usrdata['Sequence'].apply(lambda x: tuple(set(list(x))))
-    no_dups = (df.sort_values(by=['SequenceModi', 'Charge', 'SequenceArea',
-                                  'PSM_IDG', 'IonScore', 'PEP', 'q_value'],
-                              ascending=[1,1,0,1,0,1,1])
-               .drop_duplicates(subset=['SequenceArea', 'Charge', 'SequenceModi',])
-               .assign(AUC_reflagger = True)
+    """Remove duplicate sequence areas"""
+    # usrdata['Sequence_set'] = usrdata['Sequence'].apply(lambda x: tuple(set(list(x))))
+    no_dups = (
+        df.sort_values(
+            by=[
+                "SequenceModi",
+                "Charge",
+                "SequenceArea",
+                "PSM_IDG",
+                "IonScore",
+                "PEP",
+                "q_value",
+            ],
+            ascending=[1, 1, 0, 1, 0, 1, 1],
+        )
+        .drop_duplicates(
+            subset=[
+                "SequenceArea",
+                "Charge",
+                "SequenceModi",
+            ]
+        )
+        .assign(AUC_reflagger=True)
     )
-    df = (df.join(no_dups[['AUC_reflagger']])
-          .assign(AUC_reflagger = lambda x: (x['AUC_reflagger']
-                                             .fillna(0)
-                                             .astype(np.int8)))
+    df = df.join(no_dups[["AUC_reflagger"]]).assign(
+        AUC_reflagger=lambda x: (x["AUC_reflagger"].fillna(0).astype(np.int8))
     )
     return df
 
-def export_metadata(program_title='version',usrdata=None, matched_psms=0, unmatched_psms=0,
-                    usrfile='file', taxon_totals=dict(), outname=None, outpath='.', **kwargs):
-    """Update iSPEC database with some metadata information
-    """
-    print('{} | Exporting metadata'.format(time.ctime()))
-    #print('Number of matched psms : ', matched_psms)
+
+def export_metadata(
+    program_title="version",
+    usrdata=None,
+    matched_psms=0,
+    unmatched_psms=0,
+    usrfile="file",
+    taxon_totals=dict(),
+    outname=None,
+    outpath=".",
+    **kwargs,
+):
+    """Update iSPEC database with some metadata information"""
+    print("{} | Exporting metadata".format(time.ctime()))
+    # print('Number of matched psms : ', matched_psms)
     d = dict(
         version=program_title,
         searchdb=usrdata.searchdb,
@@ -858,158 +1113,200 @@ def export_metadata(program_title='version',usrdata=None, matched_psms=0, unmatc
         matched_psms=matched_psms,
         unmatched_psms=unmatched_psms,
         inputname=usrdata.datafile,
-        hu=taxon_totals.get('9606', 0),
-        mou=taxon_totals.get('10090', 0),
-        gg=taxon_totals.get('9031', 0),
+        hu=taxon_totals.get("9606", 0),
+        mou=taxon_totals.get("10090", 0),
+        gg=taxon_totals.get("9031", 0),
         recno=usrdata.recno,
         runno=usrdata.runno,
-        searchno=usrdata.searchno
+        searchno=usrdata.searchno,
     )
-    with open(os.path.join(outpath, outname), 'w') as f:
+    with open(os.path.join(outpath, outname), "w") as f:
         json.dump(d, f)
+
 
 def split_on_geneid(df):
     """Duplicate psms based on geneids. Areas of each psm is recalculated based on
     unique peptides unique for its particular geneid later.
     """
     oriflag = lambda x: 1 if x[-1] == 0 else 0
-    glstsplitter = (df['GeneIDs_All'].str.split(SEP)
-                    .apply(pd.Series, 1).stack()
-                    .to_frame(name='GeneID')
-                    .assign(oriFLAG= lambda x: x.index.map(oriflag))
-                    )
+    glstsplitter = (
+        df["GeneIDs_All"]
+        .str.split(SEP)
+        .apply(pd.Series, 1)
+        .stack()
+        .to_frame(name="GeneID")
+        .assign(oriFLAG=lambda x: x.index.map(oriflag))
+    )
 
     glstsplitter.index = glstsplitter.index.droplevel(-1)  # get rid of
-                                                           # multi-index
-    df = (df.join(glstsplitter)
-          .reset_index())
-    df['GeneID'] = df.GeneID.fillna('-1')
-    df.loc[df.GeneID == '', 'GeneID'] = '-1'
-    df['GeneID'] = df.GeneID.fillna('-1')
+    # multi-index
+    df = df.join(glstsplitter).reset_index()
+    df["GeneID"] = df.GeneID.fillna("-1")
+    df.loc[df.GeneID == "", "GeneID"] = "-1"
+    df["GeneID"] = df.GeneID.fillna("-1")
     # df['GeneID'] = df.GeneID.astype(int)
-    df['GeneID'] = df.GeneID.astype(str)
+    df["GeneID"] = df.GeneID.astype(str)
     return df
+
 
 def rank_peptides(df, area_col, ranks_only=False):
     """Rank peptides here
     area_col is sequence area_calculator
     ranks_only returns just the ranks column. This does not reset the original index
     """
-    df = df.sort_values(by=['GeneID', area_col,
-                            'SequenceModi',
-                            'Charge', 'PSM_IDG', 'IonScore', 'PEP',
-                            'q_value'],
-                        ascending=[1, 0, 0, 1, 1, 0, 1, 1])
+    df = df.sort_values(
+        by=[
+            "GeneID",
+            area_col,
+            "SequenceModi",
+            "Charge",
+            "PSM_IDG",
+            "IonScore",
+            "PEP",
+            "q_value",
+        ],
+        ascending=[1, 0, 0, 1, 1, 0, 1, 1],
+    )
     if not ranks_only:  # don't reset index for just the ranks
         df.reset_index(inplace=True)  # drop=True ?
-    df.Modifications.fillna('', inplace=True)  # must do this to compare nans
+    df.Modifications.fillna("", inplace=True)  # must do this to compare nans
     df[area_col].fillna(0, inplace=True)  # must do this to compare
-    #nans
-    ranks = (df[ (df.AUC_UseFLAG == 1) &
-                 (df.PSM_UseFLAG == 1) &
-                 (df.Peak_UseFLAG == 1) ]
-             .groupby(['GeneID', 'LabelFLAG'])
-             .cumcount() + 1)  # add 1 to start the peptide rank at 1, not 0
-    ranks.name = 'PeptRank'
+    # nans
+    ranks = (
+        df[(df.AUC_UseFLAG == 1) & (df.PSM_UseFLAG == 1) & (df.Peak_UseFLAG == 1)]
+        .groupby(["GeneID", "LabelFLAG"])
+        .cumcount()
+        + 1
+    )  # add 1 to start the peptide rank at 1, not 0
+    ranks.name = "PeptRank"
     if ranks_only:
         return ranks
     df = df.join(ranks)
     return df
 
 
-def flag_AUC_PSM(df, fv, contaminant_label='__CONTAMINANT__', phospho=False, acetyl=False):
+def flag_AUC_PSM(
+    df, fv, contaminant_label="__CONTAMINANT__", phospho=False, acetyl=False
+):
 
-    if fv['pep'] =='all' : fv['pep'] = float('inf')
-    if fv['idg'] =='all' : fv['idg'] = float('inf')
-    df['AUC_UseFLAG'] = 1
-    df['PSM_UseFLAG'] = 1
-    df.loc[(df['Charge'] < fv['zmin']) | (df['Charge'] > fv['zmax']),
-           ['AUC_UseFLAG', 'PSM_UseFLAG']] = 0
+    if fv["pep"] == "all":
+        fv["pep"] = float("inf")
+    if fv["idg"] == "all":
+        fv["idg"] = float("inf")
+    df["AUC_UseFLAG"] = 1
+    df["PSM_UseFLAG"] = 1
+    df.loc[
+        (df["Charge"] < fv["zmin"]) | (df["Charge"] > fv["zmax"]),
+        ["AUC_UseFLAG", "PSM_UseFLAG"],
+    ] = 0
 
-    df.loc[df['SequenceModiCount'] > fv['modi'],
-           ['AUC_UseFLAG', 'PSM_UseFLAG']] = 0
+    df.loc[df["SequenceModiCount"] > fv["modi"], ["AUC_UseFLAG", "PSM_UseFLAG"]] = 0
 
-    df.loc[(df['IonScore'].isnull() | df['q_value'].isnull()),
-           ['AUC_UseFLAG', 'PSM_UseFLAG']] = 1, 0
+    df.loc[
+        (df["IonScore"].isnull() | df["q_value"].isnull()),
+        ["AUC_UseFLAG", "PSM_UseFLAG"],
+    ] = (1, 0)
 
-    df.loc[df['IonScore'] < fv['ion_score'],
-           ['AUC_UseFLAG', 'PSM_UseFLAG']] = 0
+    df.loc[df["IonScore"] < fv["ion_score"], ["AUC_UseFLAG", "PSM_UseFLAG"]] = 0
 
-    df.loc[df['q_value'] > fv['qvalue'],
-           ['AUC_UseFLAG', 'PSM_UseFLAG']] = 0
+    df.loc[df["q_value"] > fv["qvalue"], ["AUC_UseFLAG", "PSM_UseFLAG"]] = 0
 
-    df.loc[df['PEP'] > fv['pep'],
-           ['AUC_UseFLAG', 'PSM_UseFLAG']] = 0
-    df.loc[df['PSM_IDG'] > fv['idg'],
-           ['AUC_UseFLAG', 'PSM_UseFLAG']] = 0
+    df.loc[df["PEP"] > fv["pep"], ["AUC_UseFLAG", "PSM_UseFLAG"]] = 0
+    df.loc[df["PSM_IDG"] > fv["idg"], ["AUC_UseFLAG", "PSM_UseFLAG"]] = 0
 
-    if df['PSMAmbiguity'].dtype == str:
-        df.loc[(df['Peak_UseFLAG'] == 0) & (df['PSMAmbiguity'].str.lower()=='unambiguous'),
-               ['AUC_UseFLAG', 'PSM_UseFLAG']] = 1
-        df.loc[(df['Peak_UseFLAG'] == 0) & (df['PSMAmbiguity'].str.lower()!='unambiguous'),
-               ['AUC_UseFLAG', 'PSM_UseFLAG']] = 0
-    elif any(df['PSMAmbiguity'].dtype == x for x in (int, float)):
-        df.loc[(df['Peak_UseFLAG'] == 0) & (df['PSMAmbiguity'] == 0),
-               ['AUC_UseFLAG', 'PSM_UseFLAG']] = 1
-        df.loc[(df['Peak_UseFLAG'] == 0) & (df['PSMAmbiguity'] != 0),
-               ['AUC_UseFLAG', 'PSM_UseFLAG']] = 0
+    if df["PSMAmbiguity"].dtype == str:
+        df.loc[
+            (df["Peak_UseFLAG"] == 0)
+            & (df["PSMAmbiguity"].str.lower() == "unambiguous"),
+            ["AUC_UseFLAG", "PSM_UseFLAG"],
+        ] = 1
+        df.loc[
+            (df["Peak_UseFLAG"] == 0)
+            & (df["PSMAmbiguity"].str.lower() != "unambiguous"),
+            ["AUC_UseFLAG", "PSM_UseFLAG"],
+        ] = 0
+    elif any(df["PSMAmbiguity"].dtype == x for x in (int, float)):
+        df.loc[
+            (df["Peak_UseFLAG"] == 0) & (df["PSMAmbiguity"] == 0),
+            ["AUC_UseFLAG", "PSM_UseFLAG"],
+        ] = 1
+        df.loc[
+            (df["Peak_UseFLAG"] == 0) & (df["PSMAmbiguity"] != 0),
+            ["AUC_UseFLAG", "PSM_UseFLAG"],
+        ] = 0
 
-    df.loc[ df['AUC_reflagger'] == 0, 'AUC_UseFLAG'] = 0
+    df.loc[df["AUC_reflagger"] == 0, "AUC_UseFLAG"] = 0
 
-    df.loc[ df['GeneIDs_All'].fillna('').str.contains(contaminant_label), ['AUC_UseFLAG', 'PSM_UseFLAG'] ] = 0, 0
+    df.loc[
+        df["GeneIDs_All"].fillna("").str.contains(contaminant_label),
+        ["AUC_UseFLAG", "PSM_UseFLAG"],
+    ] = (0, 0)
 
     # phospho modifications are designated in SequenceModi via: XXS(pho)XX
     # similarly acetyl modifications are designated via: XXK(ace)
     if phospho:
-        df.loc[ ~df['SequenceModi'].str.contains('pho', case=True), ['AUC_UseFLAG', 'PSM_UseFLAG'] ] = 0, 0
+        df.loc[
+            ~df["SequenceModi"].str.contains("pho", case=True),
+            ["AUC_UseFLAG", "PSM_UseFLAG"],
+        ] = (0, 0)
     elif acetyl:
-        df.loc[ ~df['SequenceModi'].str.contains('ace', case=True), ['AUC_UseFLAG', 'PSM_UseFLAG'] ] = 0, 0
+        df.loc[
+            ~df["SequenceModi"].str.contains("ace", case=True),
+            ["AUC_UseFLAG", "PSM_UseFLAG"],
+        ] = (0, 0)
 
     return df
 
+
 def gene_taxon_map(usrdata, gene_taxon_dict):
     """make 'gene_taxon_map' column per row which displays taxon for given gene"""
-    usrdata['TaxonID'] = usrdata['GeneID'].map(gene_taxon_dict)
+    usrdata["TaxonID"] = usrdata["GeneID"].map(gene_taxon_dict)
     return
+
 
 def get_all_taxons(taxonidlist):
     """Return a set of all taxonids from
     usrdata.TaxonIDList"""
-    taxon_ids = set(SEP.join(x for x in taxonidlist
-                             if x.strip()).split(SEP))
+    taxon_ids = set(SEP.join(x for x in taxonidlist if x.strip()).split(SEP))
     return taxon_ids
+
 
 def multi_taxon_splitter(taxon_ids, usrdata, gid_ignore_list, area_col):
     """Plugin for multiple taxons
     Returns a dictionary with the totals for each detected taxon"""
     taxon_totals = dict()
     for taxon in taxon_ids:
-        #all_others = [x for x in taxon_ids if x != taxon]
+        # all_others = [x for x in taxon_ids if x != taxon]
         uniq_taxon = usrdata[
-            #(usrdata._data_tTaxonIDList.str.contains(taxon)) &
-            #(~usrdata._data_tTaxonIDList.str.contains('|'.join(all_others)))&
-            (usrdata['AUC_UseFLAG'] == 1) &
-            (usrdata['TaxonID'] == str(taxon)) &
-            (usrdata['TaxonIDCount_All'] == 1) &
-            (~usrdata['GeneID'].isin(gid_ignore_list))
+            # (usrdata._data_tTaxonIDList.str.contains(taxon)) &
+            # (~usrdata._data_tTaxonIDList.str.contains('|'.join(all_others)))&
+            (usrdata["AUC_UseFLAG"] == 1)
+            & (usrdata["TaxonID"] == str(taxon))
+            & (usrdata["TaxonIDCount_All"] == 1)
+            & (~usrdata["GeneID"].isin(gid_ignore_list))
         ]
-        taxon_totals[taxon] = (uniq_taxon[area_col] / uniq_taxon['GeneIDCount_All']).sum()
+        taxon_totals[taxon] = (
+            uniq_taxon[area_col] / uniq_taxon["GeneIDCount_All"]
+        ).sum()
 
-    tot_unique = sum(taxon_totals.values())  #sum of all unique
-        # now compute ratio:
+    tot_unique = sum(taxon_totals.values())  # sum of all unique
+    # now compute ratio:
     for taxon in taxon_ids:
         taxon = str(taxon)
         try:
             percentage = taxon_totals[taxon] / tot_unique
         except ZeroDivisionError:
-            warn("""This file has multiple taxa but no unique to taxa peptides.
+            warn(
+                """This file has multiple taxa but no unique to taxa peptides.
             Please check this experiment
-            """)
+            """
+            )
             percentage = 1
         taxon_totals[taxon] = percentage
-        print(taxon, ' ratio : ', taxon_totals[taxon])
-        #logfile.write('{} ratio : {}\n'.format(taxon, taxon_totals[taxon]))
+        print(taxon, " ratio : ", taxon_totals[taxon])
+        # logfile.write('{} ratio : {}\n'.format(taxon, taxon_totals[taxon]))
     return taxon_totals
+
 
 # def create_df(inputdf, label, inputcol='GeneID'):
 #     """Create and return a DataFrame with gene/protein information from the input
@@ -1024,12 +1321,15 @@ def multi_taxon_splitter(taxon_ids, usrdata, gid_ignore_list, area_col):
 #     return pd.DataFrame({'GeneID':
 #                          list(set(inputdf[inputcol])),
 #                          'EXPLabelFLAG': labelflag.get(label, label)})
-def create_df(inputdf, inputcol='GeneID'):
+def create_df(inputdf, inputcol="GeneID"):
     """Create and return a DataFrame with gene/protein information from the input
     peptide DataFrame"""
-    return pd.DataFrame({'GeneID':
-                         list(set(inputdf[inputcol])),
-                         })
+    return pd.DataFrame(
+        {
+            "GeneID": list(set(inputdf[inputcol])),
+        }
+    )
+
 
 # def select_good_peptides(usrdata, labelix):
 #     """Selects peptides of a given label with the correct flag and at least one genecount
@@ -1043,133 +1343,153 @@ def select_good_peptides(usrdata):
     """Selects peptides of a given label with the correct flag and at least one genecount
     The LabelFLAG is no longer needed
     """
-    temp_df = usrdata[((usrdata['PSM_UseFLAG'] == 1) | usrdata['AUC_UseFLAG'] ==1) &
-                      (usrdata['GeneIDCount_All'] > 0)].copy()  # keep match between runs
+    temp_df = usrdata[
+        ((usrdata["PSM_UseFLAG"] == 1) | usrdata["AUC_UseFLAG"] == 1)
+        & (usrdata["GeneIDCount_All"] > 0)
+    ].copy()  # keep match between runs
     return temp_df
 
-def get_gene_capacity(genes_df, database, col='GeneID'):
+
+def get_gene_capacity(genes_df, database, col="GeneID"):
     """Get gene capcaity from the stored metadata"""
-    capacity = (database.groupby('geneid').capacity.mean()
-                .to_frame(name='GeneCapacity'))
-    genes_df = genes_df.merge(capacity, how='left', left_on='GeneID', right_index=True)
+    capacity = database.groupby("geneid").capacity.mean().to_frame(name="GeneCapacity")
+    genes_df = genes_df.merge(capacity, how="left", left_on="GeneID", right_index=True)
     return genes_df
 
-def get_gene_info(genes_df, database, col='GeneID'):
 
-    subset = ['geneid', 'homologene', 'description', 'symbol', 'taxon']
-    genecapacity = (database.groupby('geneid')['capacity']
-                    .mean()
-                    .rename('capacity_mean')
-    )
-    geneinfo = (database[subset]
-                .drop_duplicates('geneid')
-                .set_index('geneid')
-                .join(genecapacity)
-                .rename(columns=dict(gi = 'ProteinGI',
-                                     homologene = 'HomologeneID',
-                                     taxon = 'TaxonID',
-                                     description = 'Description',
-                                     ref = 'ProteinAccession',
-                                     symbol = 'GeneSymbol',
-                                     capacity_mean = 'GeneCapacity'
-                ))
+def get_gene_info(genes_df, database, col="GeneID"):
+
+    subset = ["geneid", "homologene", "description", "symbol", "taxon"]
+    genecapacity = database.groupby("geneid")["capacity"].mean().rename("capacity_mean")
+    geneinfo = (
+        database[subset]
+        .drop_duplicates("geneid")
+        .set_index("geneid")
+        .join(genecapacity)
+        .rename(
+            columns=dict(
+                gi="ProteinGI",
+                homologene="HomologeneID",
+                taxon="TaxonID",
+                description="Description",
+                ref="ProteinAccession",
+                symbol="GeneSymbol",
+                capacity_mean="GeneCapacity",
+            )
+        )
     )
     # geneinfo.index = geneinfo.index.astype(str)
     # geneinfo['TaxonID'] = geneinfo.TaxonID.astype(str)
-    out = genes_df.merge(geneinfo, how='left', left_on='GeneID', right_index=True)
+    out = genes_df.merge(geneinfo, how="left", left_on="GeneID", right_index=True)
     return out
-
-
 
 
 def get_peptides_for_gene(genes_df, temp_df):
 
-    full = (temp_df.groupby('GeneID')['sequence_lower']
-            .agg((lambda x: frozenset(x), 'nunique'))
-            # this changed from <lambda> to <lambda_0>
-            .rename(columns={'<lambda>': 'PeptideSet', '<lambda_0>': 'PeptideSet', 'nunique': 'PeptideCount'})
-            # .agg(full_op)
-            .assign(PeptidePrint = lambda x: x['PeptideSet'].apply(sorted).str.join('_'))
+    full = (
+        temp_df.groupby("GeneID")["sequence_lower"].agg(
+            (lambda x: frozenset(x), "nunique")
+        )
+        # this changed from <lambda> to <lambda_0>
+        .rename(
+            columns={
+                "<lambda>": "PeptideSet",
+                "<lambda_0>": "PeptideSet",
+                "nunique": "PeptideCount",
+            }
+        )
+        # .agg(full_op)
+        .assign(PeptidePrint=lambda x: x["PeptideSet"].apply(sorted).str.join("_"))
     )
-    full['PeptideSet'] = full.apply(lambda x : frozenset(x['PeptideSet']), axis=1)
+    full["PeptideSet"] = full.apply(lambda x: frozenset(x["PeptideSet"]), axis=1)
 
-    q_uniq = 'GeneIDCount_All == 1'
-    q_strict = 'PSM_IDG < 4'
-    q_strict_u = '{} & {}'.format(q_uniq, q_strict)
-
-    try:
-        uniq = (temp_df.query(q_uniq)
-                .groupby('GeneID')['sequence_lower']
-                .agg('nunique')
-                .to_frame('PeptideCount_u2g'))
-    except IndexError:
-        uniq = pd.DataFrame(columns=['PeptideCount_u2g'])
+    q_uniq = "GeneIDCount_All == 1"
+    q_strict = "PSM_IDG < 4"
+    q_strict_u = "{} & {}".format(q_uniq, q_strict)
 
     try:
-        strict = (temp_df.query(q_strict)
-                  .groupby('GeneID')['sequence_lower']
-                  .agg('nunique')
-                  .to_frame('PeptideCount_S'))
+        uniq = (
+            temp_df.query(q_uniq)
+            .groupby("GeneID")["sequence_lower"]
+            .agg("nunique")
+            .to_frame("PeptideCount_u2g")
+        )
     except IndexError:
-        strict = pd.DataFrame(columns=['PeptideCount_S'])
+        uniq = pd.DataFrame(columns=["PeptideCount_u2g"])
 
     try:
-        s_u2g = (temp_df.query(q_strict_u)
-                 .groupby('GeneID')['sequence_lower']
-                 .agg('nunique')
-                 .to_frame('PeptideCount_S_u2g'))
+        strict = (
+            temp_df.query(q_strict)
+            .groupby("GeneID")["sequence_lower"]
+            .agg("nunique")
+            .to_frame("PeptideCount_S")
+        )
     except IndexError:
-        s_u2g = pd.DataFrame(columns=['PeptideCount_S_u2g'])
+        strict = pd.DataFrame(columns=["PeptideCount_S"])
+
+    try:
+        s_u2g = (
+            temp_df.query(q_strict_u)
+            .groupby("GeneID")["sequence_lower"]
+            .agg("nunique")
+            .to_frame("PeptideCount_S_u2g")
+        )
+    except IndexError:
+        s_u2g = pd.DataFrame(columns=["PeptideCount_S_u2g"])
 
     result = pd.concat((full, uniq, strict, s_u2g), copy=False, axis=1).fillna(0)
-    ints = ['' + x for x in ('PeptideCount', 'PeptideCount_u2g', 'PeptideCount_S',
-                                 'PeptideCount_S_u2g')]
+    ints = [
+        "" + x
+        for x in (
+            "PeptideCount",
+            "PeptideCount_u2g",
+            "PeptideCount_S",
+            "PeptideCount_S_u2g",
+        )
+    ]
     result[ints] = result[ints].astype(np.integer)
 
-    genes_df = genes_df.merge(result, how='left',
-                              left_on='GeneID', right_index=True)
+    genes_df = genes_df.merge(result, how="left", left_on="GeneID", right_index=True)
     return genes_df
 
+
 def get_psms_for_gene(genes_df, temp_df):
-    psmflag = 'PSM_UseFLAG'
+    psmflag = "PSM_UseFLAG"
 
-    total = temp_df.groupby('GeneID')[psmflag].sum()
-    total.name = 'PSMs'
+    total = temp_df.groupby("GeneID")[psmflag].sum()
+    total.name = "PSMs"
 
-    q_uniq = 'GeneIDCount_All == 1'
-    total_u2g = (temp_df.query(q_uniq)
-                 .groupby('GeneID')[psmflag]
-                 .sum())
-    total_u2g.name = 'PSMs_u2g'
+    q_uniq = "GeneIDCount_All == 1"
+    total_u2g = temp_df.query(q_uniq).groupby("GeneID")[psmflag].sum()
+    total_u2g.name = "PSMs_u2g"
 
-    q_strict = 'PSM_IDG < 4'
-    total_s = (temp_df.query(q_strict)
-               .groupby('GeneID')[psmflag]
-               .sum())
-    total_s.name = 'PSMs_S'
+    q_strict = "PSM_IDG < 4"
+    total_s = temp_df.query(q_strict).groupby("GeneID")[psmflag].sum()
+    total_s.name = "PSMs_S"
 
-    q_strict_u = '{} & {}'.format(q_uniq, q_strict)
-    total_s_u2g = (temp_df.query(q_strict_u)
-                   .groupby('GeneID')[psmflag]
-                   .sum())
-    total_s_u2g.name = 'PSMs_S_u2g'
+    q_strict_u = "{} & {}".format(q_uniq, q_strict)
+    total_s_u2g = temp_df.query(q_strict_u).groupby("GeneID")[psmflag].sum()
+    total_s_u2g.name = "PSMs_S_u2g"
 
-    result = (pd.concat( (total, total_u2g, total_s, total_s_u2g), copy=False, axis=1)
-              .fillna(0)
-              .astype(np.integer))
-    genes_df = genes_df.merge(result, how='left',
-                              left_on='GeneID', right_index=True)
+    result = (
+        pd.concat((total, total_u2g, total_s, total_s_u2g), copy=False, axis=1)
+        .fillna(0)
+        .astype(np.integer)
+    )
+    genes_df = genes_df.merge(result, how="left", left_on="GeneID", right_index=True)
     return genes_df
 
 
 def calculate_full_areas(genes_df, temp_df, area_col, normalize):
-    """ Calculates full (non distributed ) areas for gene ids.
+    """Calculates full (non distributed ) areas for gene ids.
     calculates full, gene count normalized, unique to gene,
     and unique to gene with no miscut areas.
     """
-    qstring = 'AUC_UseFLAG == 1'
-    full = temp_df.query(qstring).groupby('GeneID')[area_col].sum()/normalize
-    full.name = 'AreaSum_max'
+    logging.info("Calculating peak areas")
+
+    qstring = "AUC_UseFLAG == 1"
+    full = temp_df.query(qstring).groupby("GeneID")[area_col].sum() / normalize
+    full.name = "AreaSum_max"
 
     # full_adj = (temp_df.query(qstring)
     #             .assign(gpAdj = lambda x: x[area_col] / x['GeneIDCount_All'])
@@ -1182,19 +1502,21 @@ def calculate_full_areas(genes_df, temp_df, area_col, normalize):
     # strict = temp_df.query(qstring_s).groupby('GeneID')[area_col].sum()
     # strict.name = ''
 
-    qstring_u = qstring + ' & GeneIDCount_All == 1'
-    uniq = temp_df.query(qstring_u).groupby('GeneID')[area_col].sum()/normalize
-    uniq.name = 'AreaSum_u2g_all'
+    qstring_u = qstring + " & GeneIDCount_All == 1"
+    uniq = temp_df.query(qstring_u).groupby("GeneID")[area_col].sum() / normalize
+    uniq.name = "AreaSum_u2g_all"
 
-    qstring_u0 = qstring_u + ' & MissedCleavages == 0'
-    uniq_0 = temp_df.query(qstring_u0).groupby('GeneID')[area_col].sum()/normalize
-    uniq_0.name = 'AreaSum_u2g_0'
-    result = pd.concat( (full, uniq, uniq_0), copy=False, axis=1).fillna(0)
-    genes_df = genes_df.merge(result, how='left',
-                              left_on='GeneID', right_index=True)
+    qstring_u0 = qstring_u + " & MissedCleavages == 0"
+    uniq_0 = temp_df.query(qstring_u0).groupby("GeneID")[area_col].sum() / normalize
+    uniq_0.name = "AreaSum_u2g_0"
+    result = pd.concat((full, uniq, uniq_0), copy=False, axis=1).fillna(0)
+    genes_df = genes_df.merge(result, how="left", left_on="GeneID", right_index=True)
     return genes_df
 
-def _distribute_area(inputdata, genes_df, area_col, taxon_totals=None, taxon_redistribute=True):
+
+def _distribute_area(
+    inputdata, genes_df, area_col, taxon_totals=None, taxon_redistribute=True
+):
     """Row based normalization of PSM area (mapped to a specific gene).
     Normalization is based on the ratio of the area of unique peptides for the
     specific gene to the sum of the areas of the unique peptides for all other genes
@@ -1203,91 +1525,96 @@ def _distribute_area(inputdata, genes_df, area_col, taxon_totals=None, taxon_red
     # if inputdata.AUC_UseFLAG == 0:
     #     return 0
     inputvalue = inputdata[area_col]
-    geneid = inputdata['GeneID']
-    gene_inputdata = genes_df.query('GeneID == @geneid')
-    u2g_values = gene_inputdata['AreaSum_u2g_all'].values
+    geneid = inputdata["GeneID"]
+    gene_inputdata = genes_df.query("GeneID == @geneid")
+    u2g_values = gene_inputdata["AreaSum_u2g_all"].values
 
     if len(u2g_values) == 1:
-        u2g_area = u2g_values[0] # grab u2g info, should always be
-    #of length 1
-    elif len(u2g_values) > 1 :
-        warn('DistArea is not singular at GeneID : {}'.format(
-             datetime.now(),inputdata['GeneID']))
+        u2g_area = u2g_values[0]  # grab u2g info, should always be
+    # of length 1
+    elif len(u2g_values) > 1:
+        warn(
+            "DistArea is not singular at GeneID : {}".format(
+                datetime.now(), inputdata["GeneID"]
+            )
+        )
         distArea = 0
         # this should never happen (and never has)
-    else :
+    else:
         distArea = 0
-        print('No distArea for GeneID : {}'.format(inputdata['GeneID']))
+        print("No distArea for GeneID : {}".format(inputdata["GeneID"]))
     # taxon_ratio = taxon_totals.get(inputdata.gene_taxon_map, 1)
 
-    if u2g_area != 0 :
+    if u2g_area != 0:
         totArea = 0
         gene_list = inputdata.GeneIDs_All.split(SEP)
-        all_u2gareas = (genes_df[genes_df['GeneID'].isin(gene_list)]
-                        .query('PeptideCount_u2g > 0')  # all geneids with at least 1 unique pept
-                        .AreaSum_u2g_all)
+        all_u2gareas = (
+            genes_df[genes_df["GeneID"].isin(gene_list)]
+            .query("PeptideCount_u2g > 0")  # all geneids with at least 1 unique pept
+            .AreaSum_u2g_all
+        )
         if len(all_u2gareas) > 1 and any(x == 0 for x in all_u2gareas):
             # special case with multiple u2g peptides but not all have areas, rare but does happen
             u2g_area = 0  # force to distribute by gene count (and taxon percentage if appropriate)
         else:
             totArea = all_u2gareas.sum()
-            distArea = (u2g_area/totArea) * inputvalue
-        #ratio of u2g peptides over total area
+            distArea = (u2g_area / totArea) * inputvalue
+        # ratio of u2g peptides over total area
     elif all(gene_inputdata.IDSet == 3):
         return 0
     if u2g_area == 0:  # no uniques, normalize by genecount
         taxon_percentage = taxon_totals.get(str(inputdata.TaxonID), 1)
         distArea = inputvalue
         if taxon_percentage < 1:
-            distArea *=  taxon_percentage
+            distArea *= taxon_percentage
         gpg_selection = genes_df.GPGroup == gene_inputdata.GPGroup.values[0]
         try:
             if taxon_redistribute:
                 taxonid_selection = genes_df.TaxonID == gene_inputdata.TaxonID.values[0]
-                distArea /= len( genes_df[(gpg_selection) & (taxonid_selection)])
+                distArea /= len(genes_df[(gpg_selection) & (taxonid_selection)])
             else:
-                distArea /= len( genes_df[(gpg_selection)
-                ])
+                distArea /= len(genes_df[(gpg_selection)])
         except ZeroDivisionError:
             pass
 
     return distArea
 
+
 def distribute_area(temp_df, genes_df, area_col, taxon_totals, taxon_redistribute=True):
-   """Distribute psm area based on unique gene product area
-   Checks for AUC_UseFLAG==1 for whether or not to use each peak for quantification
-   """
+    """Distribute psm area based on unique gene product area
+    Checks for AUC_UseFLAG==1 for whether or not to use each peak for quantification
+    """
 
-   q = 'AUC_UseFLAG == 1 & GeneIDCount_All > 1'
-   distarea = 'PrecursorArea_dstrAdj'
-   temp_df[distarea] = 0
-   # temp_df[distarea] = (temp_df.query(q)
-   #                      .apply(
-   #                          _distribute_area, args=(genes_df,
-   #                                                      area_col,
-   #                                                      taxon_totals,
-   #                                                      taxon_redistribute),
-   #                          axis=1)
-   # )
-   temp_df[distarea] = (temp_df.query(q)
-                        .pipe(apply_by_multiprocessing,
-                              _distribute_area,
-                              workers=WORKERS,
-                              func_args=(genes_df, area_col, taxon_totals, taxon_redistribute),
-                              axis=1)
-   )
+    q = "AUC_UseFLAG == 1 & GeneIDCount_All > 1"
+    distarea = "PrecursorArea_dstrAdj"
+    temp_df[distarea] = 0
+    # temp_df[distarea] = (temp_df.query(q)
+    #                      .apply(
+    #                          _distribute_area, args=(genes_df,
+    #                                                      area_col,
+    #                                                      taxon_totals,
+    #                                                      taxon_redistribute),
+    #                          axis=1)
+    # )
+    temp_df[distarea] = temp_df.query(q).pipe(
+        apply_by_multiprocessing,
+        _distribute_area,
+        workers=WORKERS,
+        func_args=(genes_df, area_col, taxon_totals, taxon_redistribute),
+        axis=1,
+    )
 
-   one_id = (temp_df.GeneIDCount_All == 1) & (temp_df.AUC_UseFLAG == 1)
-   temp_df.loc[ one_id , distarea ] = temp_df.loc[ one_id, area_col ]
-   # temp_df[distarea].fillna(0, inplace=True)
+    one_id = (temp_df.GeneIDCount_All == 1) & (temp_df.AUC_UseFLAG == 1)
+    temp_df.loc[one_id, distarea] = temp_df.loc[one_id, area_col]
+    # temp_df[distarea].fillna(0, inplace=True)
 
-   return
+    return
+
 
 def _set2_or_3(row, genes_df, allsets):
 
     # print(row.GeneID)
     # if row.GeneID == 'Lactobacillus1142' or row.GeneID == 'Alistipes42':
-        # import ipdb; ipdb.set_trace()
 
     peptset = row.PeptideSet
     # allsets = genes_df.PeptideSet.unique()  # calculate outside this function for performance boost
@@ -1297,7 +1624,6 @@ def _set2_or_3(row, genes_df, allsets):
     elif six.PY3 and any(peptset < allsets):
         return 3
 
-
     # check if is set 3 across multiple genes, or is set2
     gid = row.GeneID
 
@@ -1306,42 +1632,47 @@ def _set2_or_3(row, genes_df, allsets):
 
     # sel = genes_df[(genes_df.PeptideSet & peptset) ].query('GeneID != @gid') # doesn't work anymore??
     # this fix does the equivalent? Believe so
-    sel = genes_df[(genes_df.PeptideSet.apply(lambda x: x.intersection(peptset))).apply(bool)].query('GeneID != @gid')
-    sel_idset1 = sel.query('IDSet == 1')
+    sel = genes_df[
+        (genes_df.PeptideSet.apply(lambda x: x.intersection(peptset))).apply(bool)
+    ].query("GeneID != @gid")
+    sel_idset1 = sel.query("IDSet == 1")
 
     in_pop = sel.PeptideSet
     in_pop_set1 = sel_idset1.PeptideSet
 
-    in_row = sel.apply( lambda x: peptset - x['PeptideSet'], axis=1 )
+    in_row = sel.apply(lambda x: peptset - x["PeptideSet"], axis=1)
 
     if in_pop.empty:
         in_pop_all = set()
     else:
         in_pop_all = set(in_pop.apply(tuple).apply(pd.Series).stack().unique())
     # except Exception as e:
-    #     import ipdb; ipdb.set_trace()
 
     if not in_pop_set1.empty:
-        in_pop_all_set1 = set(in_pop_set1.apply(tuple).apply(pd.Series).stack().unique())
+        in_pop_all_set1 = set(
+            in_pop_set1.apply(tuple).apply(pd.Series).stack().unique()
+        )
     else:
         in_pop_all_set1 = set()
 
-    diff = (peptset - in_pop_all)  # check if is not a subset of anything
+    diff = peptset - in_pop_all  # check if is not a subset of anything
 
-    diff_idset1 = (peptset - in_pop_all_set1)  # check if is not a subset of set1 ids
+    diff_idset1 = peptset - in_pop_all_set1  # check if is not a subset of set1 ids
 
-    if len( diff_idset1 ) == 0:  # is a subset of idset1 ids
+    if len(diff_idset1) == 0:  # is a subset of idset1 ids
         return 3
 
-    elif len( diff ) > 0: # is not a subset of anything
+    elif len(diff) > 0:  # is not a subset of anything
         return 2
 
     else:
 
-        sel_not_idset1 = sel.query('IDSet != 1')
+        sel_not_idset1 = sel.query("IDSet != 1")
 
         if any(sel_not_idset1.PeptideSet == peptset):
-            return 2  # shares all peptides with another, and is not a subset of anything
+            return (
+                2  # shares all peptides with another, and is not a subset of anything
+            )
 
         # need to check if is a subset of everything combined, but not a subset of one thing
         # ex:
@@ -1349,8 +1680,8 @@ def _set2_or_3(row, genes_df, allsets):
         # row    =  A   B
         # match1 =  A
         # match2 =      B
-        if (all( (peptset - sel.PeptideSet).apply(bool) ) and
-            not all( (sel_not_idset1.PeptideSet - peptset).apply(bool) )
+        if all((peptset - sel.PeptideSet).apply(bool)) and not all(
+            (sel_not_idset1.PeptideSet - peptset).apply(bool)
         ):
             return 2
         else:
@@ -1365,15 +1696,17 @@ def _set2_or_3(row, genes_df, allsets):
             # all_shared_pepts = (set([x for y in sel_not_idset1.PeptideSet.values for x in y])
             #                     & peptset)
 
-
     return 3
+
 
 class _DummyDataFrame:
     def eat_args(self, *args, **kwargs):
         return None
+
     def __getattr__(self, name):
         if name not in self.__dict__:
             return self.eat_args
+
 
 def check_length_in_pipe(df):
     """Checks the length of a DataFrame in a pipe
@@ -1384,66 +1717,76 @@ def check_length_in_pipe(df):
         return _DummyDataFrame()
     return df
 
+
 def assign_gene_sets(genes_df, temp_df):
+
+    logging.info("Assigning gene sets")
     all_ = genes_df.PeptideSet.unique()
     allsets = genes_df.PeptideSet.unique()
-    genes_df.loc[genes_df.PeptideCount_u2g > 0, 'IDSet'] = 1
-    genes_df.loc[genes_df.PeptideCount_u2g == 0, 'IDSet'] = \
-                            (genes_df.query('PeptideCount_u2g == 0')
-                             .pipe(check_length_in_pipe)
-                             # .apply(_set2_or_3, args=(genes_df, allsets), axis=1))
-                             .pipe(apply_by_multiprocessing, _set2_or_3, genes_df=genes_df, allsets=allsets,
-                                   axis=1, workers=WORKERS)
-                                   # axis=1, workers=1)
-                            )
-    genes_df['IDSet'] = genes_df['IDSet'].fillna(3).astype(np.int8)
+    genes_df.loc[genes_df.PeptideCount_u2g > 0, "IDSet"] = 1
+    genes_df.loc[genes_df.PeptideCount_u2g == 0, "IDSet"] = (
+        genes_df.query("PeptideCount_u2g == 0").pipe(check_length_in_pipe)
+        # .apply(_set2_or_3, args=(genes_df, allsets), axis=1))
+        .pipe(
+            apply_by_multiprocessing,
+            _set2_or_3,
+            genes_df=genes_df,
+            allsets=allsets,
+            axis=1,
+            workers=WORKERS,
+        )
+        # axis=1, workers=1)
+    )
+    genes_df["IDSet"] = genes_df["IDSet"].fillna(3).astype(np.int8)
     # if u2g count greater than 0 then set 1
-    gpg = (temp_df
-           .query('PSM_IDG>0')
-           .groupby('GeneID')
-           .PSM_IDG.min()
-           .rename('IDGroup'))
-    gpg_u2g = (temp_df.query('GeneIDCount_All==1')
-               .query('PSM_IDG>0')
-               .groupby('GeneID')
-               .PSM_IDG.min()
-               .rename('IDGroup_u2g'))
-    gpgs = (pd.concat([gpg, gpg_u2g], axis=1).fillna(0).astype(np.int8)
-            .assign(GeneID = lambda x: x.index)
-            )
-    genes_df = pd.merge(genes_df, gpgs, on='GeneID', how='left')
+    gpg = temp_df.query("PSM_IDG>0").groupby("GeneID").PSM_IDG.min().rename("IDGroup")
+    gpg_u2g = (
+        temp_df.query("GeneIDCount_All==1")
+        .query("PSM_IDG>0")
+        .groupby("GeneID")
+        .PSM_IDG.min()
+        .rename("IDGroup_u2g")
+    )
+    gpgs = (
+        pd.concat([gpg, gpg_u2g], axis=1)
+        .fillna(0)
+        .astype(np.int8)
+        # .assign(GeneID = lambda x: x.index)
+        # .reset_index(drop=True)
+    )
+    genes_df = pd.merge(genes_df, gpgs, left_on="GeneID", how="left", right_index=True)
     return genes_df
+
 
 def calculate_gene_dstrarea(genes_df, temp_df, normalize=1):
     """Calculate distributed area for each gene product"""
-    result = (temp_df.query('AUC_UseFLAG == 1')
-              .groupby('GeneID')['PrecursorArea_dstrAdj']
-              .sum()
-              .divide(normalize)
-              .to_frame(name='AreaSum_dstrAdj')
+    result = (
+        temp_df.query("AUC_UseFLAG == 1")
+        .groupby("GeneID")["PrecursorArea_dstrAdj"]
+        .sum()
+        .divide(normalize)
+        .to_frame(name="AreaSum_dstrAdj")
     )
-    genes_df = genes_df.merge(result, how='left',
-                              left_on='GeneID', right_index=True)
-    genes_df.loc[genes_df['IDSet'] == 3, 'AreaSum_dstrAdj'] = 0
+    genes_df = genes_df.merge(result, how="left", left_on="GeneID", right_index=True)
+    genes_df.loc[genes_df["IDSet"] == 3, "AreaSum_dstrAdj"] = 0
     return genes_df
+
 
 def calculate_gene_razorarea(genes_df, temp_df, normalize):
     """Calculate razor area for each gene product"""
 
-    separate_groups = lambda gpg_all : set(float(x.strip()) for z in
-                                           (y.split(SEP) for y in gpg_all.values)
-                                           for x in z
+    separate_groups = lambda gpg_all: set(
+        float(x.strip()) for z in (y.split(SEP) for y in gpg_all.values) for x in z
     )
 
     def razor_area(temp_df, genes_df):
         gid = temp_df.GeneID
-        gpgs = (genes_df[genes_df.GeneID==gid].GPGroups_All
-                .pipe(separate_groups))
+        gpgs = genes_df[genes_df.GeneID == gid].GPGroups_All.pipe(separate_groups)
         if len(gpgs) == 0:
             return 0
-        allgenes = genes_df[ genes_df.GPGroup.isin(gpgs) ]
+        allgenes = genes_df[genes_df.GPGroup.isin(gpgs)]
         max_uniq = allgenes.PeptideCount_u2g.max()
-        gene_selection = allgenes[allgenes.PeptideCount_u2g==max_uniq]
+        gene_selection = allgenes[allgenes.PeptideCount_u2g == max_uniq]
         if len(gene_selection) != 1 or max_uniq == 0:  # no uniques
             return 0
         if gid == gene_selection.GeneID.values[0]:
@@ -1451,70 +1794,62 @@ def calculate_gene_razorarea(genes_df, temp_df, normalize):
         else:
             return 0
 
-    temp_df['RazorArea'] = 0
-    q = 'AUC_UseFLAG == 1 & GeneIDCount_All > 1'
-    temp_df['RazorArea'] = (temp_df.query(q)
-                                .apply(razor_area,
-                                       args=(genes_df,),
-                                       axis=1
-                                ))
+    temp_df["RazorArea"] = 0
+    q = "AUC_UseFLAG == 1 & GeneIDCount_All > 1"
+    temp_df["RazorArea"] = temp_df.query(q).apply(razor_area, args=(genes_df,), axis=1)
     one_id = temp_df.GeneIDCount_All == 1
-    temp_df.loc[ one_id , 'RazorArea' ] = temp_df.loc[ one_id,
-                                                           'SequenceArea' ]
-    result = temp_df.groupby('GeneID')['RazorArea'].sum() / normalize
-    result = (temp_df.groupby('GeneID')['RazorArea']
-              .sum()
-              .divide(normalize)
-              .to_frame(name='AreaSum_razor')
+    temp_df.loc[one_id, "RazorArea"] = temp_df.loc[one_id, "SequenceArea"]
+    result = temp_df.groupby("GeneID")["RazorArea"].sum() / normalize
+    result = (
+        temp_df.groupby("GeneID")["RazorArea"]
+        .sum()
+        .divide(normalize)
+        .to_frame(name="AreaSum_razor")
     )
-    genes_df = genes_df.merge(result, how='left',
-                              left_on='GeneID', right_index=True)
+    genes_df = genes_df.merge(result, how="left", left_on="GeneID", right_index=True)
     return genes_df
+
 
 def set_gene_gpgroups(genes_df, temp_df):
     """Assign GPGroups"""
 
-    genes_df.sort_values(by=['PSMs'], ascending=False, inplace=True)
+    logging.info("Assigning gpgroups")
+
+    genes_df.sort_values(by=["PSMs"], ascending=False, inplace=True)
     genes_df.reset_index(inplace=True)
 
-    set1s =  genes_df.query('IDSet==1')
+    set1s = genes_df.query("IDSet==1")
 
-    gpg_vals = range(1, len(set1s) + 1 )
-    set1_gpgs = (pd.Series(data=gpg_vals, index=set1s.index, name='GPGroup')
-                 .to_frame())
+    gpg_vals = range(1, len(set1s) + 1)
+    set1_gpgs = pd.Series(data=gpg_vals, index=set1s.index, name="GPGroup").to_frame()
 
     next_gpg = len(set1_gpgs) + 1
-    set2_filtered = genes_df.query('IDSet==2')
+    set2_filtered = genes_df.query("IDSet==2")
     if len(set2_filtered) > 0:
-    # if len(set2_filts = (set2_filtered
-        set2s = (set2_filtered
-                 .groupby('PeptideSet')
-                 .first()
-        .index)
-        set2_gpgdict = (pd.Series(index=set2s,
-                                  data=range(next_gpg, next_gpg + len(set2s)))
-        .to_dict())
-        genes_df['GPGroup'] = genes_df.PeptideSet.map(set2_gpgdict)
+        # if len(set2_filts = (set2_filtered
+        set2s = set2_filtered.groupby("PeptideSet").first().index
+        set2_gpgdict = pd.Series(
+            index=set2s, data=range(next_gpg, next_gpg + len(set2s))
+        ).to_dict()
+        genes_df["GPGroup"] = genes_df.PeptideSet.map(set2_gpgdict)
     else:
-        genes_df['GPGroup'] = [np.nan] * len(genes_df)
-    genes_df.loc[set1_gpgs.index, 'GPGroup'] = set1_gpgs
-
+        genes_df["GPGroup"] = [np.nan] * len(genes_df)
+    genes_df.loc[set1_gpgs.index, "GPGroup"] = set1_gpgs
 
     # (temp_df[['Sequence', 'GeneIDs_All']]
     #  .drop_duplicates('Sequence')
     #  .assign(geneids = lambda x: (x['GeneIDs_All'].str.split(',')))
     # )
 
-
     gene_pept_mapping = defaultdict(set)
     pept_group_mapping = defaultdict(set)
     valid_gpgroups = genes_df[~(genes_df.GPGroup.isnull())]
     for ix, row in valid_gpgroups.iterrows():
-        for pept in row['PeptideSet']:
+        for pept in row["PeptideSet"]:
             gene_pept_mapping[row.GeneID].add(pept)
             pept_group_mapping[pept].add(row.GPGroup)
     for ix, row in genes_df[genes_df.GPGroup.isnull()].iterrows():  # need to add set3s
-        for pept in row['PeptideSet']:
+        for pept in row["PeptideSet"]:
             gene_pept_mapping[row.GeneID].add(pept)
 
     def gpg_all(gid, gene_pept_mapping, pept_group_mapping):
@@ -1526,10 +1861,9 @@ def set_gene_gpgroups(genes_df, temp_df):
             gpgs |= pept_group_mapping.get(pept)
         return SEP.join(str(int(x)) for x in sorted(gpgs))
 
-    genes_df['GPGroups_All'] = genes_df.apply(lambda x: gpg_all(x['GeneID'],
-                                                                    gene_pept_mapping,
-                                                                    pept_group_mapping),
-    axis=1)
+    genes_df["GPGroups_All"] = genes_df.apply(
+        lambda x: gpg_all(x["GeneID"], gene_pept_mapping, pept_group_mapping), axis=1
+    )
     # do not need to multiprocess this
     # genes_df['GPGroups_All'] = genes_df.GeneID.pipe(apply_by_multiprocessing,
     #                                                 gpg_all,
@@ -1537,99 +1871,121 @@ def set_gene_gpgroups(genes_df, temp_df):
     #                                                 workers=WORKERS,
     # )
 
-    genes_df['GPGroup'] = genes_df['GPGroup'].fillna(0).astype(np.int)
+    genes_df["GPGroup"] = genes_df["GPGroup"].fillna(0).astype(np.int)
     # genes_df['GPGroup'].replace(to_replace='', value=float('NaN'),
     #                                 inplace=True)  # can't sort int and
-    #strings, convert all strings to NaN
+    # strings, convert all strings to NaN
     return genes_df
 
-def get_labels(usrdata, labels, labeltype='none'):
+
+def get_labels(usrdata, labels, labeltype="none"):
     '""labels is a dictionary of lists for each label type""'
-    if labeltype == 'none':  # label free
-        return ['none']
-    elif labeltype == 'SILAC':
+    if labeltype == "none":  # label free
+        return ["none"]
+    elif labeltype == "SILAC":
         return usrdata.LabelFLAG.unique()
     mylabels = labels.get(labeltype)
     if mylabels is None:
-        return ['none']
+        return ["none"]
     included_labels = [label for label in mylabels if label in usrdata.columns]
     return included_labels
+
 
 def regularize_filename(f):
     """
     regularize filename so that it's valid on windows
     """
-    invalids = r'< > : " / \ | ? *'.split(' ')
+    invalids = r'< > : " / \ | ? *'.split(" ")
     # invalids = r'<>:"/\\\|\?\*'
     out = str(f)
     for i in invalids:
-        out = out.replace(i, '_')
+        out = out.replace(i, "_")
     return out
 
 
-
-def split_multiplexed(usrdata, labeltypes, exp_labeltype='none'):
+def split_multiplexed(usrdata, labeltypes, exp_labeltype="none"):
 
     df = usrdata.df
 
-    if exp_labeltype == 'none':
-        df['LabelFLAG'] = 0
-        df['PrecursorArea_split'] = df['PrecursorArea']
-        out = os.path.join(usrdata.outdir, usrdata.output_name(str(0)+'_psms', ext='tsv'))
-        df['ReporterIntensity'] = np.NAN
+    if exp_labeltype == "none":
+        df["LabelFLAG"] = 0
+        df["PrecursorArea_split"] = df["PrecursorArea"]
+        out = os.path.join(
+            usrdata.outdir, usrdata.output_name(str(0) + "_psms", ext="tsv")
+        )
+        df["ReporterIntensity"] = np.NAN
         quant_cols = [x for x in DATA_QUANT_COLS if x in df]
-        df[quant_cols].to_csv(out, index=False, encoding='utf-8', sep='\t')
-        return {0: out}
+        # df[quant_cols].to_csv(out, index=False, encoding="utf-8", sep="\t")
+        return {0: df[quant_cols]}
 
     # SILAC
-    if exp_labeltype == 'SILAC':
+    if exp_labeltype == "SILAC":
         output = dict()
         for iso_label in labeltypes:  # convert labeltype to lower for finding
             if iso_label == 0:
-                subdf = df[ ~df['SequenceModi'].str.contains('Label') ].copy()
+                subdf = df[~df["SequenceModi"].str.contains("Label")].copy()
             else:
-                subdf = df[ df['SequenceModi'].str.contains(iso_label.lower(), regex=False) ].copy()
+                subdf = df[
+                    df["SequenceModi"].str.contains(iso_label.lower(), regex=False)
+                ].copy()
 
-            subdf['LabelFLAG'] = 0
-            subdf['ReporterIntensity'] = np.NAN
-            subdf['PrecursorArea_split'] = subdf['PrecursorArea']  # no splitting on reporter ion
+            subdf["LabelFLAG"] = 0
+            subdf["ReporterIntensity"] = np.NAN
+            subdf["PrecursorArea_split"] = subdf[
+                "PrecursorArea"
+            ]  # no splitting on reporter ion
 
             # outname = str(iso_label).replace(':', '_')
             outname = regularize_filename(str(iso_label))
-            out = os.path.join(usrdata.outdir, usrdata.output_name(outname+'_psms', ext='tsv'))
+            out = os.path.join(
+                usrdata.outdir, usrdata.output_name(outname + "_psms", ext="tsv")
+            )
             quant_cols = [x for x in DATA_QUANT_COLS if x in subdf]
-            subdf[quant_cols].to_csv(out, index=False, encoding='utf-8', sep='\t')
-            output[iso_label] = out
+            # subdf[quant_cols].to_csv(out, index=False, encoding="utf-8", sep="\t")
+            output[iso_label] = subdf[quant_cols]
         return output
-
 
     # iTRAQ/TMT
     # output = list()
     output = dict()
 
-    query = '.*{}.*'.format(exp_labeltype.lower())
-    df['LabelFLAG'] = np.nan
-    df.loc[ ~df['SequenceModi'].str.contains(query), 'LabelFLAG' ] = 0
-
+    # TMTPro
+    query = "{}|229|304.207|608.414".format(exp_labeltype.lower())
+    df["LabelFLAG"] = np.nan
+    # assign labeltype
+    df.loc[~df["SequenceModi"].str.contains(query), "LabelFLAG"] = 0
 
     for label in labeltypes:
 
-        labelix = labelflag.get(label, 0)
-
-        with_reporter = df[ df['SequenceModi'].str.contains(query, case=False) ].copy()
-        reporter_area = with_reporter['PrecursorArea'] * with_reporter[label] / with_reporter[labeltypes].sum(1)
+        with_reporter = df[
+            (df["SequenceModi"].str.contains(query, case=False))
+            | (
+                df.SequenceModi.str.startswith("C")
+                & (df.SequenceModi.str.contains("361.228|286.18"))
+            )
+        ].copy()
+        # we add this to take care fo cystines at the n terminus with carbamidomethylation and TMT10/Pro
+        reporter_area = (
+            with_reporter["PrecursorArea"]
+            * with_reporter[label]
+            / with_reporter[labeltypes].sum(1)
+        )
         # new_area_col = '' + area_col + '_split'
-        reporter_area.name = 'PrecursorArea_split'
-        temp_df = df.join(reporter_area, how='right')  # only keep peptides with good reporter ion
-        temp_df['LabelFLAG'] = labelix
+        reporter_area.name = "PrecursorArea_split"
+        temp_df = df.join(
+            reporter_area, how="right"
+        )  # only keep peptides with good reporter ion
+        temp_df["LabelFLAG"] = label
         # temp_df['ReporterIntensity'] = with_reporter[label]
-        temp_df = temp_df.join(with_reporter[label].to_frame('ReporterIntensity'))
+        temp_df = temp_df.join(with_reporter[label].to_frame("ReporterIntensity"))
         # temp_df['PrecursorArea_Split'].fillna(temp_df['PrecursorArea'], inplace=True)
 
         quant_cols = [x for x in DATA_QUANT_COLS if x in temp_df]
-        out = os.path.join(usrdata.outdir, usrdata.output_name(str(labelix)+'_psms', ext='tsv'))
-        temp_df[quant_cols].to_csv(out, index=False, encoding='utf-8', sep='\t')
-        output[labelix] = out
+        out = os.path.join(
+            usrdata.outdir, usrdata.output_name(str(label) + "_psms", ext="tsv")
+        )
+        output[label] = temp_df[quant_cols]
+        # output[label] = out
 
     # output.append( df.query('LabelFLAG==0') )
 
@@ -1640,56 +1996,85 @@ def split_multiplexed(usrdata, labeltypes, exp_labeltype='none'):
     # nolabel.to_csv(out, index=False, encoding='utf-8', sep='\t')
     # output[0] = out
 
-    return pd.Series(output)
+    return output
+
 
 def redistribute_area_isobar(temp_df, label, labeltypes, area_col, labeltype):
     """for tmt/itraq"""
     # with_reporter = temp_df[temp_df['QuanUsage'] == 'Use']
-    q = '.*{}.*'.format(labeltype.lower())
-    with_reporter = temp_df[ temp_df['SequenceModi'].str.contains(q)]
-    reporter_area = with_reporter[label] * with_reporter[area_col] / with_reporter[labeltypes].sum(1)
-    new_area_col = '' + area_col + '_split'
+    q = ".*{}.*".format(labeltype.lower())
+    with_reporter = temp_df[temp_df["SequenceModi"].str.contains(q)]
+    reporter_area = (
+        with_reporter[label]
+        * with_reporter[area_col]
+        / with_reporter[labeltypes].sum(1)
+    )
+    new_area_col = "" + area_col + "_split"
     reporter_area.name = new_area_col
-    temp_df = temp_df.join(reporter_area, how='right')  # only keep peptides with good reporter ion
+    temp_df = temp_df.join(
+        reporter_area, how="right"
+    )  # only keep peptides with good reporter ion
     temp_df[new_area_col].fillna(temp_df[area_col], inplace=True)
     return temp_df, new_area_col
 
-def concat_isobar_output(rec, run, search, outdir, outf, cols=None, labeltype=None, datatype='e2g'):
-    if labeltype == "SILAC": # do not have digits assigned yet for different labels
-        pat = re.compile('^{}_{}_{}_{}_(Label)?.*_{}.tsv'.format(rec, run, search, labeltype, datatype))
+
+def concat_isobar_output(
+    rec, run, search, outdir, outf, cols=None, labeltype=None, datatype="e2g"
+):
+    if labeltype == "SILAC":  # do not have digits assigned yet for different labels
+        pat = re.compile(
+            "^{}_{}_{}_{}_(Label)?.*_{}.tsv".format(
+                rec, run, search, labeltype, datatype
+            )
+        )
     else:
-        pat = re.compile('^{}_{}_{}_{}_.*_\d+_{}.tsv'.format(rec, run, search, labeltype, datatype))
+        pat = re.compile(
+            "^{}_{}_{}_{}_.*_\d+_{}.tsv".format(rec, run, search, labeltype, datatype)
+        )
     files = list()
     for entry in os.scandir(outdir):
         if entry.is_file() and pat.search(entry.name):
             files.append(os.path.join(outdir, entry.name))
     files = sorted(files)
     if len(files) == 0:
-        warn('No output for {}_{}_{}'.format(rec, run, search))
+        logging.warning("No output for {}_{}_{}".format(rec, run, search))
         return
 
     df = pd.concat((pd.read_table(f) for f in files))
-    if all(x in df for x in ('LabelFLAG', 'GeneID')):
-        df = df.sort_values(by=['LabelFLAG', 'GeneID'])
+    if all(x in df for x in ("LabelFLAG", "GeneID")):
+        df = df.sort_values(by=["LabelFLAG", "GeneID"])
     # outf = '{}_{}_{}_{}_all_{}.tab'.format(rec, run, search, labeltype, datatype)
     # outf = '{}_{}_{}_{}_{}.tab'.format(rec, run, search, labeltype, datatype)
 
-    if datatype == 'e2g' and cols is None:
+    if datatype == "e2g" and cols is None:
         # cols = E2G_COLS
         cols = GENE_QUANT_COLS
-    elif datatype == 'psms':
+    elif datatype == "psms":
         if not all(x in df.columns.values for x in set(cols) - set(_EXTRA_COLS)):
-            print('Potential error, not all columns filled.')
+            print("Potential error, not all columns filled.")
             print([x for x in cols if x not in df.columns.values])
         cols = [x for x in cols if x in df.columns.values]
 
-    df.to_csv(os.path.join(outdir, outf), columns=cols,
-                    index=False, encoding='utf-8', sep='\t')
+    df.to_csv(
+        os.path.join(outdir, outf),
+        columns=cols,
+        index=False,
+        encoding="utf-8",
+        sep="\t",
+    )
+
+    # cleanup
+    for f in files:
+        logging.debug(f)
+        if os.path.exists(f):
+            logging.info(f"Cleanup of file {f}")
+            os.remove(f)
 
     # out_chksum = os.path.join(outdir, outf[:-3]+'md5')
     # write_md5(out_chksum, md5sum(os.path.join(outdir, outf)))
 
-    print('Export of {} file : {}'.format(labeltype, outf))
+    logging.info("Export of {} file : {}".format(labeltype, outf))
+
 
 def assign_sra(df):
 
@@ -1697,41 +2082,41 @@ def assign_sra(df):
     # cat_type = CategoricalDtype(categories=['S', 'R', 'A'],
     #                             ordered=True)
     # df['SRA'] = df['SRA'].astype(cat_type)
-    df['SRA'] = pd.Categorical(['A']*len(df), categories=['S', 'R', 'A'], ordered=True)
+    df["SRA"] = pd.Categorical(
+        ["A"] * len(df), categories=["S", "R", "A"], ordered=True
+    )
     # df['SRA'] = df['SRA'].astype('category', categories=['S', 'R', 'A'],
     #                              ordered=True)
-    df.loc[ (df['IDSet'] == 1) &
-            (df['IDGroup_u2g'] <= 3), 'SRA'] = 'S'
+    df.loc[(df["IDSet"] == 1) & (df["IDGroup_u2g"] <= 3), "SRA"] = "S"
 
-    df.loc[ (df['IDSet'] == 2) &
-            (df['IDGroup'] <= 3), 'SRA'] = 'S'
+    df.loc[(df["IDSet"] == 2) & (df["IDGroup"] <= 3), "SRA"] = "S"
 
-    df.loc[ (df['IDSet'] == 1) &
-            (df['SRA'] != 'S') &
-            (df['IDGroup_u2g'] <= 5), 'SRA'] = 'R'
+    df.loc[
+        (df["IDSet"] == 1) & (df["SRA"] != "S") & (df["IDGroup_u2g"] <= 5), "SRA"
+    ] = "R"
 
-    df.loc[ (df['IDSet'] == 2) &
-            (df['SRA'] != 'S') &
-            (df['IDGroup'] <= 5), 'SRA'] = 'R'
+    df.loc[(df["IDSet"] == 2) & (df["SRA"] != "S") & (df["IDGroup"] <= 5), "SRA"] = "R"
 
     return df
 
+
 # def set_protein_groups_axis(row, psms, protgis, protrefs):
-    # gid = row['GeneID']
-    # try:
-    #     gene_specific = protgis.get(gid).split(SEP)
-    # except AttributeError:
-    #     gene_specific = tuple()
-    # psms[ psms['GeneID'] == gid ]
+# gid = row['GeneID']
+# try:
+#     gene_specific = protgis.get(gid).split(SEP)
+# except AttributeError:
+#     gene_specific = tuple()
+# psms[ psms['GeneID'] == gid ]
+
 
 def set_protein_groups_axis(row, protgis, protrefs):
 
     gid = row.name
-    valid_protgis = protgis.get(gid, '').split(SEP)
-    valid_refs    = protrefs.get(gid, '').split(SEP)
+    valid_protgis = protgis.get(gid, "").split(SEP)
+    valid_refs = protrefs.get(gid, "").split(SEP)
     # protgis = filter(lambda x: not np.isnan(x), row.loc['ProteinGIs_All'])
-    protgis  = [x for x in row.loc['ProteinGIs_All'] if isinstance(x, str)]
-    protrefs = [x for x in row.loc['ProteinRefs_All'] if isinstance(x, str)]
+    protgis = [x for x in row.loc["ProteinGIs_All"] if isinstance(x, str)]
+    protrefs = [x for x in row.loc["ProteinRefs_All"] if isinstance(x, str)]
 
     # filter by proteins that map to this particular gene
     protgi_grps = [x for x in protgis if any(y in x for y in valid_protgis)]
@@ -1740,108 +2125,121 @@ def set_protein_groups_axis(row, protgis, protrefs):
     # remove gis/refs that belong to different gids
     protgi_grps_gene, protref_grps_gene = list(), list()
 
-    protgi_grps_gene = [set([x for x in grp.split(SEP) if x in valid_protgis])
-                        for grp in protgi_grps]
+    protgi_grps_gene = [
+        set([x for x in grp.split(SEP) if x in valid_protgis]) for grp in protgi_grps
+    ]
     # now find subsets:
     protgi_grps_pruned = list()
     for grp in protgi_grps_gene:
         for other in protgi_grps_gene:
             if grp == other:
-                continue # same one
+                continue  # same one
             # if grp.intersection(other) == other:  # other is a subset
             #     break
             if not grp - other:  # grp is a subset
                 break
-        else: # only if we get through everyother and don't break out do we keep
+        else:  # only if we get through everyother and don't break out do we keep
             if grp not in protgi_grps_pruned:
                 protgi_grps_pruned.append(grp)
 
-    protref_grps_gene = [set([x for x in grp.split(SEP) if x in valid_protgis])
-                         for grp in protref_grps]
+    protref_grps_gene = [
+        set([x for x in grp.split(SEP) if x in valid_protgis]) for grp in protref_grps
+    ]
     # now find subsets:
     protref_grps_pruned = list()
     for grp in protref_grps_gene:
         for other in protref_grps_gene:
             if grp == other:
-                continue # same one
+                continue  # same one
             if grp.intersection(other) == other:  # other is a subset
                 break
-        else: # only if we get through everyother and don't break out do we keep
+        else:  # only if we get through everyother and don't break out do we keep
             if grp not in protref_grps_pruned:
                 protref_grps_pruned.append(grp)
 
-    return '|'.join(SEP.join(x) for x in protgi_grps_pruned), '|'.join(SEP.join(x) for x in protref_grps_pruned)
+    return "|".join(SEP.join(x) for x in protgi_grps_pruned), "|".join(
+        SEP.join(x) for x in protref_grps_pruned
+    )
+
 
 def set_protein_groups(df, psms, gene_protgi_dict, gene_protref_dict):
     """Assign protein groups (via collections of unique-to-protein(s) peptides)"""
 
-    res = (psms.groupby('GeneID')
-           .agg({'ProteinGIs_All': 'unique', 'ProteinRefs_All': 'unique'})
-           .pipe(apply_by_multiprocessing,
-                 set_protein_groups_axis,
-                 func_args=(gene_protgi_dict, gene_protref_dict),
-                 workers=WORKERS,
-                 axis=1
-           )
-           .apply(pd.Series)
-           .rename(columns={0:'ProteinGI_GIDGroups', 1:'ProteinRef_GIDGroups'})
+    res = (
+        psms.groupby("GeneID")
+        .agg({"ProteinGIs_All": "unique", "ProteinRefs_All": "unique"})
+        .pipe(
+            apply_by_multiprocessing,
+            set_protein_groups_axis,
+            func_args=(gene_protgi_dict, gene_protref_dict),
+            workers=WORKERS,
+            axis=1,
+        )
+        .apply(pd.Series)
+        .rename(columns={0: "ProteinGI_GIDGroups", 1: "ProteinRef_GIDGroups"})
     )
     # this is regular expression count, so escape the pipe
-    res['ProteinGI_GIDGroupCount']  = res.ProteinGI_GIDGroups.str.count('\|') + 1
-    res['ProteinRef_GIDGroupCount'] = res.ProteinRef_GIDGroups.str.count('\|') + 1
+    res["ProteinGI_GIDGroupCount"] = res.ProteinGI_GIDGroups.str.count("\|") + 1
+    res["ProteinRef_GIDGroupCount"] = res.ProteinRef_GIDGroups.str.count("\|") + 1
 
-    return df.merge(res, left_on='GeneID', right_index=True)
+    return df.merge(res, left_on="GeneID", right_index=True)
+
 
 def assign_labels_for_qual(df, labeltype, labeltypes):
-    if labeltype in ('none' 'TMT'):
-        df['LabelFLAG'] = ';'.join(map(str, [labelflag.get(x, '?') for x in labeltypes]))
+    if labeltype in ("none" "TMT"):
+        df["LabelFLAG"] = ";".join(
+            map(str, [labelflag.get(x, "?") for x in labeltypes])
+        )
     else:
-        raise NotImplementedError('')
+        raise NotImplementedError("")
     return df
 
 
 # from ._orig_code import *
 # from ._orig_code import (extract_peptideinfo, _extract_peptideinfo,
 #                          _peptidome_matcher, peptidome_matcher)
-def grouper(usrdata, outdir='', database=None,
-            gid_ignore_file='', labels=dict(),
-            contaminant_label='__CONTAMINANT__',
-            razor=False):
+def grouper(
+    usrdata,
+    outdir="",
+    database=None,
+    gid_ignore_file="",
+    labels=dict(),
+    contaminant_label="__CONTAMINANT__",
+    razor=False,
+):
     """Function to group a psm file from PD after Mascot Search"""
 
-    def print_log_msg(df_or_None=None, msg='', *args, **kwargs):
+    def print_log_msg(df_or_None=None, msg="", *args, **kwargs):
         """Print and log a message.
         Can be used in pipe operation as always returns the
         first argument untouched.
         """
-        fmt = dict(now = datetime.now(),
-                   msg = msg
-        )
-        log_msg = '{now} | {msg}'.format(**fmt)
-        print(log_msg)
+        fmt = dict(now=datetime.now(), msg=msg)
+        log_msg = "{now} | {msg}".format(**fmt)
         logging.info(log_msg)
-        usrdata.to_logq(log_msg)
         return df_or_None
 
-    #import RefseqInfo
-    usrfile = usrdata.datafile
+    # import RefseqInfo
+
     # file with entry of gene ids to ignore for normalizations
     gid_ignore_list = []
-    usrdata_out = usrdata.output_name('psms', ext='tsv')
+    usrdata_out = usrdata.output_name("psms", ext="tsv")
     if gid_ignore_file is not None and os.path.isfile(gid_ignore_file):
-        print('Using gene filter file for normalization.')
+        print("Using gene filter file for normalization.")
         gid_ignore_list = get_gid_ignore_list(gid_ignore_file)
 
-    area_col = 'PrecursorArea'  # set default
-    normalize = 10**9
+    area_col = "PrecursorArea"  # set default
+    normalize = 10 ** 9
 
+    logging.info(
+        f"Starting Grouper for exp file {usrdata.datafile}".format(usrdata.datafile)
+    )
+    logging.info("")
+    logging.info(f"Filter values set to : {usrdata.filterstamp}")
 
-    print('Starting Grouper for exp file {}'.format(usrfile))
-    print('\nFilter values set to : {}'.format(usrdata.filterstamp))
-    usrdata.to_logq('{} | Starting {} for file : {}'.format(time.ctime(),
-                                                            program_title, usrfile))
     # ==================== Populate gene info ================================ #
     # gene_metadata = extract_metadata(usrdata.df.metadatainfo)
+
     gene_taxon_dict = gene_taxon_mapper(database)
     gene_symbol_dict = gene_symbol_mapper(database)
     gene_desc_dict = gene_desc_mapper(database)
@@ -1851,232 +2249,311 @@ def grouper(usrdata, outdir='', database=None,
 
     # ==================== Populate gene info ================================ #
 
-    # usrdata.df['HID'], usrdata.df['ProteinGI'] = '', ''
-    # potentially filled in later, but  likely not. Will be kept as list.
+    logging.info(f"Finished matching PSMs to taxonid: {usrdata.taxonid}")
 
-    usrdata.to_logq('{} | Finished matching PSMs to {} '\
-                    'refseq'.format(time.ctime(),
-                                    usrdata.taxonid))
-    logging.info('Starting Grouper for exp number'\
-                 '{}'.format(repr(usrdata)))
-    nomatches = usrdata.df[usrdata.df['GeneIDCount_All'] == 0].Sequence  # select all
-    #PSMs that didn't get a match to the refseq peptidome
-    matched_psms = len(usrdata.df[usrdata.df['GeneIDCount_All'] != 0])
+    nomatches = usrdata.df[usrdata.df["GeneIDCount_All"] == 0].Sequence  # select all
+    # PSMs that didn't get a match to the refseq peptidome
+    matched_psms = len(usrdata.df[usrdata.df["GeneIDCount_All"] != 0])
     unmatched_psms = len(nomatches)
-    usrdata.to_logq('{} | Total identified PSMs : {}'.format(time.ctime(),
-                                                             matched_psms))
-    usrdata.to_logq('{} | Total unidentified PSMs : {}'.format(time.ctime(),
-                                                               unmatched_psms))
-    for missing_seq in nomatches:
-        logging.warning('No match for sequence {} in {}'.format(missing_seq,
-                                                                usrfile))
-        # Store all of these sequences in the big log file, not per experiment.
+    logging.info(f"Total matched PSMs : {matched_psms}")
+    logging.info(f"Total unmatched PSMs : {unmatched_psms}")
 
-    labeltypes = get_labels(usrdata.df, labels, usrdata.labeltype)
-
+    # store this somewhere else?
+    # for missing_seq in nomatches:
+    #     logging.warning(
+    #         "No match for sequence {} in {}".format(missing_seq, usrdata.datafile)
+    #     )
+    #     # Store all of these sequences in the big log file, not per experiment.
     # export the PSM quantification data to separate files.
     # store resulting files in `psm_data` pd.Series
 
+    labeltypes = get_labels(usrdata.df, labels, usrdata.labeltype)
+
     psm_data = split_multiplexed(usrdata, labeltypes, exp_labeltype=usrdata.labeltype)
+    # dictionary of labels : dataframe of data
+
     dtypes = usrdata.df.dtypes.to_dict()
     label_taxon = defaultdict(dict)  # store this for species estimates for each label
 
-
-    qual_data =  (usrdata.df.pipe(assign_IDG, filtervalues=usrdata.filtervalues)
-                  .assign(sequence_lower = lambda x: x['Sequence'].str.lower())
-                  .sort_values(by=['SpectrumFile', area_col,
-                                   'Sequence', 'Modifications',
-                                   'Charge', 'PSM_IDG', 'IonScore', 'PEP',
-                                   'q_value'],
-                               ascending=[0, 0, 1, 1, 1, 1, 0, 1, 1])
-                  .pipe(redundant_peaks)  # remove ambiguous peaks
+    qual_data = (
+        usrdata.df.pipe(assign_IDG, filtervalues=usrdata.filtervalues)
+        .assign(sequence_lower=lambda x: x["Sequence"].str.lower())
+        .sort_values(
+            by=[
+                "SpectrumFile",
+                area_col,
+                "Sequence",
+                "Modifications",
+                "Charge",
+                "PSM_IDG",
+                "IonScore",
+                "PEP",
+                "q_value",
+            ],
+            ascending=[0, 0, 1, 1, 1, 1, 0, 1, 1],
+        )
+        .pipe(redundant_peaks)  # remove ambiguous peaks
     )
-
 
     # genes_df = (create_df(temp_df, label)
-    good_qual_data = (qual_data.assign(PrecursorArea_split=lambda x: x['PrecursorArea'])
-                      .pipe(sum_area) # we have to calculate this here, but will recalculate
-                      .pipe(auc_reflagger)     # for each label
-                      .pipe(flag_AUC_PSM, usrdata.filtervalues, contaminant_label=contaminant_label,
-                            phospho=usrdata.phospho)
-                      .pipe(split_on_geneid)
-                      .assign(TaxonID = lambda x: x['GeneID'].map(gene_taxon_dict),
-                              Symbol = lambda x: x['GeneID'].map(gene_symbol_dict),
-                              Description = lambda x: x['GeneID'].map(gene_desc_dict),
-                              ProteinGIs = lambda x: x['GeneID'].map(gene_protgi_dict),
-                              ProteinRefs = lambda x: x['GeneID'].map(gene_protref_dict),
-                      )
-                      .pipe(select_good_peptides)
-                      .pipe(assign_labels_for_qual, usrdata.labeltype, labeltypes)
+    good_qual_data = (
+        qual_data.assign(PrecursorArea_split=lambda x: x["PrecursorArea"])
+        .pipe(sum_area)  # we have to calculate this here, but will recalculate
+        .pipe(auc_reflagger)  # for each label
+        .pipe(
+            flag_AUC_PSM,
+            usrdata.filtervalues,
+            contaminant_label=contaminant_label,
+            phospho=usrdata.phospho,
+        )
+        .pipe(split_on_geneid)
+        .assign(
+            TaxonID=lambda x: x["GeneID"].map(gene_taxon_dict),
+            Symbol=lambda x: x["GeneID"].map(gene_symbol_dict),
+            Description=lambda x: x["GeneID"].map(gene_desc_dict),
+            ProteinGIs=lambda x: x["GeneID"].map(gene_protgi_dict),
+            ProteinRefs=lambda x: x["GeneID"].map(gene_protref_dict),
+        )
+        .pipe(select_good_peptides)
+        .pipe(assign_labels_for_qual, usrdata.labeltype, labeltypes)
     )
 
-    out = os.path.join(usrdata.outdir, usrdata.output_name('psms_QUAL', ext='tsv'))
+    psms_qual_f = os.path.join(
+        usrdata.outdir, usrdata.output_name("psms_QUAL", ext="tsv")
+    )
     # out = os.path.join(usrdata.outdir, usrdata.output_name('psms', ext='tab'))
-    _cols = [x for x in DATA_ID_COLS if x in good_qual_data]
+    _cols = [
+        x
+        for x in DATA_ID_COLS
+        if x in good_qual_data and x not in ("sequence-lower", "Sequence_set")
+    ]
     _miss_cols = [x for x in DATA_ID_COLS if x not in good_qual_data]
-    if _miss_cols:
-        print("Missing 1 or more PSM QUAL columns: {}".format(', '.join(_miss_cols)))
-    good_qual_data.to_csv(out, index=False, encoding='utf-8', sep='\t', columns=DATA_ID_COLS)
+    # if _miss_cols:
+    #     logging.warning(
+    #         "Missing 1 or more PSM QUAL columns: {}".format(", ".join(_miss_cols))
+    #     )
+    # good_qual_data.to_csv(out, index=False, encoding='utf-8', sep='\t', columns=DATA_ID_COLS)
+    _toexclude = ("Sequence_set", "sequence_lower")
+    good_qual_data.to_csv(
+        psms_qual_f,
+        columns=[x for x in good_qual_data if x not in _toexclude],
+        index=False,
+        encoding="utf-8",
+        sep="\t",
+    )
+    logging.info(f"Wrote {psms_qual_f}")
 
-    qual_genes = (create_df(good_qual_data)
-                  # .assign(TaxonID = lambda x : x['GeneID'].map(gene_taxon_dict))
-                  .pipe(get_gene_info, database)
-                  # .pipe(get_gene_capacity, database)
-                  .pipe(get_peptides_for_gene, good_qual_data)
-                  .pipe(calc_coverage, database, good_qual_data)
-                  .pipe(get_psms_for_gene, good_qual_data)
-                  # .pipe(calculate_full_areas, temp_df, 'SequenceArea', normalize)
-                  # .fillna(0)
-                  .pipe(print_log_msg, msg='Assigning gene sets and groups for {}'.format(usrdata.datafile))
-                  .pipe(assign_gene_sets, good_qual_data)
-                  .pipe(set_gene_gpgroups, good_qual_data)
-                  .assign(Symbol = lambda x: x['GeneID'].map(gene_symbol_dict),
-                          Description = lambda x: x['GeneID'].map(gene_desc_dict),
-                          HIDs = lambda x: x['GeneID'].map(gene_hid_dict),
-                          ProteinGIs = lambda x: x['GeneID'].map(gene_protgi_dict),
-                          ProteinRefs = lambda x: x['GeneID'].map(gene_protref_dict),
-                          EXPRecNo = usrdata.recno,
-                          EXPRunNo = usrdata.runno,
-                          EXPSearchNo = usrdata.searchno,
-                          AddedBy = usrdata.added_by,
-                  )
-                  .pipe(assign_sra)
-                  .pipe(set_protein_groups, good_qual_data, gene_protgi_dict, gene_protref_dict)
-                  .pipe(assign_labels_for_qual, usrdata.labeltype, labeltypes)
+    qual_genes = (
+        create_df(good_qual_data)
+        # .assign(TaxonID = lambda x : x['GeneID'].map(gene_taxon_dict))
+        .pipe(get_gene_info, database)
+        # .pipe(get_gene_capacity, database)
+        .pipe(get_peptides_for_gene, good_qual_data)
+        .pipe(calc_coverage, database, good_qual_data)
+        .pipe(get_psms_for_gene, good_qual_data)
+        # .pipe(calculate_full_areas, temp_df, 'SequenceArea', normalize)
+        # .fillna(0)
+        .pipe(
+            print_log_msg,
+            msg="Assigning gene sets and groups for {}".format(usrdata.datafile),
+        )
+        .pipe(assign_gene_sets, good_qual_data)
+        .pipe(set_gene_gpgroups, good_qual_data)
+        .assign(
+            Symbol=lambda x: x["GeneID"].map(gene_symbol_dict),
+            Description=lambda x: x["GeneID"].map(gene_desc_dict),
+            HIDs=lambda x: x["GeneID"].map(gene_hid_dict),
+            ProteinGIs=lambda x: x["GeneID"].map(gene_protgi_dict),
+            ProteinRefs=lambda x: x["GeneID"].map(gene_protref_dict),
+            EXPRecNo=usrdata.recno,
+            EXPRunNo=usrdata.runno,
+            EXPSearchNo=usrdata.searchno,
+            AddedBy=usrdata.added_by,
+        )
+        .pipe(assign_sra)
+        .pipe(set_protein_groups, good_qual_data, gene_protgi_dict, gene_protref_dict)
+        .pipe(assign_labels_for_qual, usrdata.labeltype, labeltypes)
     )
 
+    if "PeptideSet" in qual_genes:
+        qual_genes = qual_genes.drop(labels=["PeptideSet"], axis=1)
+    genedata_out = usrdata.output_name("e2g_QUAL", ext="tsv")
+    _outf = os.path.join(usrdata.outdir, genedata_out)
+    qual_genes.to_csv(
+        _outf,
+        columns=GENE_QUAL_COLS,
+        index=False,
+        encoding="utf-8",
+        sep="\t",
+    )
+    logging.info(f"Wrote {genedata_out}")
+    usrdata.e2g_files.append(_outf)
 
-    if 'PeptideSet' in qual_genes:
-        qual_genes = qual_genes.drop(labels=['PeptideSet'], axis=1)
-    genedata_out = usrdata.output_name('e2g_QUAL', ext='tsv')
-    qual_genes.to_csv(os.path.join(usrdata.outdir, genedata_out), columns=GENE_QUAL_COLS,
-                    index=False, encoding='utf-8', sep='\t')
+    _id_cols = [
+        x
+        for x in [
+            "SpectrumFile",
+            "Charge",
+            "RTmin",
+            "FirstScan",
+            "PSMAmbiguity",
+            "ProteinList",
+            "IonScore",
+            "q_value",
+            "SequenceModi",
+            "Sequence",
+            "EXPRecNo",
+            "EXPRunNo",
+            "EXPSearchNo",
+            "DeltaMassPPM",
+            "PEP",
+            "MissedCleavages",
+            "SequenceModiCount",
+            "Modifications",
+            "GeneIDs_All",
+            "GeneIDCount_All",
+            "TaxonIDs_All",
+            "TaxonIDCount_All",
+            "ProteinGIs_All",
+            "ProteinGICount_All",
+            "ProteinRefs_All",
+            "ProteinRefCount_All",
+            "HIDs",
+            "HIDCount_All",
+            "GeneCapacities",
+            "PSM_IDG",
+            "sequence_lower",
+            "Peak_UseFLAG",
+        ]
+        if x in qual_data
+    ]
 
-    _merge_cols = ['EXPRecNo', 'EXPRunNo', 'EXPSearchNo', 'SpectrumFile', 'Charge', 'RTmin',
-                    'SequenceModi']
-    _id_cols = [x for x in ['SpectrumFile', 'Charge', 'RTmin', 'PSMAmbiguity',
-                'ProteinList', 'IonScore', 'q_value', 'SequenceModi',
-                'Sequence', 'EXPRecNo', 'EXPRunNo', 'EXPSearchNo',
-                'DeltaMassPPM', 'PEP', 'MissedCleavages', 'SequenceModiCount', 'Modifications',
-                'GeneIDs_All', 'GeneIDCount_All', 'TaxonIDs_All', 'TaxonIDCount_All', 'ProteinGIs_All',
-                'ProteinGICount_All', 'ProteinRefs_All', 'ProteinRefCount_All', 'HIDs', 'HIDCount_All',
-                'GeneCapacities', 'PSM_IDG', 'sequence_lower', 'Peak_UseFLAG']
-                if x in qual_data]
-
-
+    gene_level_label_dict = dict()
     # data_cols = DATA_COLS
-    for labelix, psmfile in psm_data.items():
+    for label, df in psm_data.items():
         # label = flaglabel.get(labelix, 'none')
-        label = flaglabel.get(labelix, labelix)
-        df = pd.read_table(psmfile, dtype=dtypes)
-        df['SpectrumFile'] = df['SpectrumFile'].fillna('')
-        # print('='*25, ' {} {} '.format(labelflag, labelix), '='*25)
-        print('{} | Working on label {}'.format(time.ctime(), label))
-        usrdata.to_logq('{} | Working on label "{}": {}'.format(time.ctime(), label, labelix))
+        # df = pd.read_table(psmfile, dtype=dtypes)
+        # df = pd.read_table(psmfile)
+        # df = psmfile
+        # df["SpectrumFile"] = df["SpectrumFile"].fillna("")
+
+        logging.info(f"Working on label {label}")
         if df.empty:
+            logging.warning(f"No data for {label}")
             continue
-
-<<<<<<< HEAD
-        # usrdata.df =  (df.pipe(assign_IDG, filtervalues=usrdata.filtervalues)
-        #             .assign(sequence_lower = lambda x: x['Sequence'].str.lower())
-        #             .sort_values(by=['SpectrumFile', area_col,
-        #                             'Sequence', 'Modifications',
-        #                             'Charge', 'PSM_IDG', 'IonScore', 'PEP',
-        #                             'q_value'],
-        #                         ascending=[0, 0, 1, 1, 1, 1, 0, 1, 1])
-
 
         # for some reason the RTmin values get off and need to be rounded to match
         # have to do this to get rid of floating point decimal inaccuracy..
-        df['RTmin'] = df.RTmin.mul(10e6).pipe(np.floor).div(10e6).round(5)
-        qual_data['RTmin'] = qual_data['RTmin'].round(5)
-        dfm = (df.merge(qual_data[_id_cols], on=_merge_cols, indicator=True, how='outer'))
-        assert dfm._merge.value_counts().both == len(dfm)
+        # this is done because the data file is reloaded from disk
+        # if this is all kept in memory we could avoid this
+        # df['RTmin'] = df.RTmin.mul(10e6).pipe(np.floor).div(10e6).round(5)
+        # df['RTmin'] = df.RTmin.mul(10e2).pipe(np.floor).div(10e2).round(5)
+        # qual_data['RTmin'] = qual_data['RTmin'].mul(10e2).pipe(np.floor).div(10e2).round(5)
+        # df["RTmin"] = df.RTmin.pipe(np.around, 4)
+        # qual_data["RTmin"] = qual_data["RTmin"].pipe(np.around, 4)
 
-        dfm = (dfm.pipe(sum_area)
-               .pipe(auc_reflagger)  # remove duplicate sequence areas
-               .pipe(flag_AUC_PSM, usrdata.filtervalues, contaminant_label=contaminant_label,
-                     phospho=usrdata.phospho)
-               .pipe(split_on_geneid)
-               .assign(TaxonID = lambda x: x['GeneID'].map(gene_taxon_dict),
-                       Symbol = lambda x: x['GeneID'].map(gene_symbol_dict),
-                       Description = lambda x: x['GeneID'].map(gene_desc_dict),
-                       ProteinGIs = lambda x: x['GeneID'].map(gene_protgi_dict),
-                       ProteinRefs = lambda x: x['GeneID'].map(gene_protref_dict),
-                       LabelFLAG = labelix
-               )
-=======
-        usrdata.df =  (df.pipe(assign_IDG, filtervalues=usrdata.filtervalues)
-                    .assign(sequence_lower = lambda x: x['Sequence'].str.lower())
-                    .sort_values(by=['SpectrumFile', area_col,
-                                    'Sequence', 'Modifications',
-                                    'Charge', 'PSM_IDG', 'IonScore', 'PEP',
-                                    'q_value'],
-                                ascending=[0, 0, 1, 1, 1, 1, 0, 1, 1])
-                    .pipe(redundant_peaks)  # remove ambiguous peaks
-                    .pipe(sum_area)
-                    .pipe(auc_reflagger)  # remove duplicate sequence areas
-                    .pipe(flag_AUC_PSM, usrdata.filtervalues, contaminant_label=contaminant_label,
-                            phospho=usrdata.phospho, acetyl=usrdata.acetyl)
-                    .pipe(split_on_geneid)
-                    .assign(TaxonID = lambda x: x['GeneID'].map(gene_taxon_dict),
-                            Symbol = lambda x: x['GeneID'].map(gene_symbol_dict),
-                            Description = lambda x: x['GeneID'].map(gene_desc_dict),
-                            ProteinGIs = lambda x: x['GeneID'].map(gene_protgi_dict),
-                            ProteinRefs = lambda x: x['GeneID'].map(gene_protref_dict),
-                    )
->>>>>>> 7917bf8f89c5ef5c6c9af1609aad844b66bf7b6c
+        _merge_cols = [
+            x
+            for x in [
+                "EXPRecNo",
+                "EXPRunNo",
+                "EXPSearchNo",
+                "FirstScan",  # have to have this
+                "SpectrumFile",
+                "Charge",
+                "SequenceModi",
+            ]
+        ]
+        #                if x in _id_cols
+        # ]
+
+        dfm = df.merge(
+            qual_data[_id_cols],
+            on=_merge_cols,
+            indicator=True,
+            how="outer",
         )
 
+        assert dfm._merge.value_counts().both <= len(dfm)
+
+        dfm = (
+            dfm.pipe(sum_area)
+            .pipe(auc_reflagger)  # remove duplicate sequence areas
+            .pipe(
+                flag_AUC_PSM,
+                usrdata.filtervalues,
+                contaminant_label=contaminant_label,
+                phospho=usrdata.phospho,
+            )
+            .pipe(split_on_geneid)
+            .assign(
+                TaxonID=lambda x: x["GeneID"].map(gene_taxon_dict),
+                Symbol=lambda x: x["GeneID"].map(gene_symbol_dict),
+                Description=lambda x: x["GeneID"].map(gene_desc_dict),
+                # ProteinGIs=lambda x: x["GeneID"].map(gene_protgi_dict),
+                ProteinRefs=lambda x: x["GeneID"].map(gene_protref_dict),
+                LabelFLAG=label,
+            )
+        )
 
         additional_labels = list()
         # ======================== Plugin for multiple taxons  ===================== #
         # taxon_ids = usrdata.df['TaxonID'].replace(['0', 0, 'NaN', 'nan', 'NAN'], np.nan).dropna().unique()
-        taxon_ids = dfm['TaxonID'].replace(['0', 0, 'NaN', 'nan', 'NAN'], np.nan).dropna().unique()
+        taxon_ids = (
+            dfm["TaxonID"]
+            .replace(["0", 0, "NaN", "nan", "NAN"], np.nan)
+            .dropna()
+            .unique()
+        )
+
         taxon_totals = dict()
-        usrdata.to_logq("TaxonIDs: {}".format(len(taxon_ids)))
+        # usrdata.to_logq("TaxonIDs: {}".format(len(taxon_ids)))
+        logging.info("TaxonIDs: {}".format(len(taxon_ids)))
         # usrdata.to_logq(str(usrdata.df))
         if len(taxon_ids) == 1 or usrdata.no_taxa_redistrib:  # just 1 taxon id present
-            for tid in taxon_ids: # taxon_ids is a set
+            for tid in taxon_ids:  # taxon_ids is a set
                 taxon_totals[tid] = 1
                 label_taxon[label][tid] = 1
         elif len(taxon_ids) > 1:  # more than 1 taxon id
-            taxon_totals = multi_taxon_splitter(taxon_ids, dfm,
-                                                gid_ignore_list, 'PrecursorArea_split')
-            print('Multiple taxa found, redistributing areas...')
-            usrdata.to_logq('{} | Multiple taxa found, redistributing areas.'.format(time.ctime()))
+            taxon_totals = multi_taxon_splitter(
+                taxon_ids, dfm, gid_ignore_list, "PrecursorArea_split"
+            )
+            logging.info("Multiple taxa found, redistributing areas...")
             usrdata.taxon_ratio_totals.update(taxon_totals)
             for taxon, ratio in taxon_totals.items():
                 # print('For the full data : {} = {}'.format(taxon, ratio))
                 # usrdata.to_logq('For the full data : {} = {}'.format(taxon, ratio))
-                print('For label {} : {} = {}'.format(label, taxon, ratio))
-                usrdata.to_logq('For label {} : {} = {}'.format(label, taxon, ratio))
+                logging.info("For label {} : {} = {}".format(label, taxon, ratio))
+                # usrdata.to_logq("For label {} : {} = {}".format(label, taxon, ratio))
                 label_taxon[label][taxon] = ratio
 
-        gpgcount, genecount, ibaqtot, = 0, 0, 0
+        gpgcount, genecount, ibaqtot, = (
+            0,
+            0,
+            0,
+        )
 
-
-        orig_area_col = 'SequenceArea'
+        orig_area_col = "SequenceArea"
         # Don't use the aggregated SequenceArea for TMT experiments
-        usrdata.to_logq('{} | Starting gene assignment for label {}.'.format(time.ctime(), label))
+        logging.info(f"Starting genen assignment for label {label}")
 
         # if usrdata.labeltype in ('TMT', 'iTRAQ'):
         #     isobar_output = pd.DataFrame()  # instead of merging, we will concat
         # for label in labeltypes:  # increase the range to go through more label types
         #     labelix = labelflag.get(label, 0)
         #     area_col = orig_area_col
-            # usrdata.to_logq('{} | Starting gene assignment for label {}.'.format(
-            #     time.ctime(), label))
+        # usrdata.to_logq('{} | Starting gene assignment for label {}.'.format(
+        #     time.ctime(), label))
 
-        # ==========Select only peptides flagged  with good quality=========== #
-<<<<<<< HEAD
+        # dfm['TaxonID'].fillna('', inplace=True)
+        # dfm['Symbol'].fillna('', inplace=True)
+        # dfm['Description'].fillna('', inplace=True)
+        # dfm['ProteinRefs'].fillna('', inplace=True)
+        # dfm['SequenceModiCount'].fillna('', inplace=True)
         temp_df = select_good_peptides(dfm)
-=======
-        data_cols = DATA_COLS
-        temp_df = select_good_peptides(usrdata.df, labelix)
->>>>>>> 7917bf8f89c5ef5c6c9af1609aad844b66bf7b6c
+
         if temp_df.empty:  # only do if we actually have peptides selected
-            print('Warning, no good peptides found for label {}'.format(label))
+            logging.warning("No good peptides found for label {}".format(label))
             continue
 
         # if usrdata.labeltype in ('TMT', 'iTRAQ'):
@@ -2097,58 +2574,70 @@ def grouper(usrdata, outdir='', database=None,
         #     raise NotImplementedError('No support for SILAC experiments yet.')
         # ==================================================================== #
 
-        print('{}: Populating gene table for {}.'.format(datetime.now(), usrdata.datafile))
-
-        msg_areas = 'Calculating peak areas for {}'.format(usrdata.datafile)
-        msg_sets = 'Assigning gene sets and groups for {}'.format(usrdata.datafile)
-
-        genes_df = (create_df(temp_df)
-                    .merge(qual_genes, on='GeneID')
-                    # .pipe(get_gene_info, database)
-                    # .pipe(get_peptides_for_gene, temp_df)
-                    # .pipe(calc_coverage, database, temp_df)
-                    # .pipe(get_psms_for_gene, temp_df)
-                    .pipe(print_log_msg, msg=msg_areas)
-                    .pipe(calculate_full_areas, temp_df, 'SequenceArea', normalize)
-                    .assign(LabelFLAG=labelix)
-                    # .pipe(print_log_msg, msg=msg_sets)
-                    # .pipe(assign_gene_sets, temp_df)
-                    # .pipe(set_gene_gpgroups, temp_df)
-                    # .assign(Symbol = lambda x: x['GeneID'].map(gene_symbol_dict),
-                    #         Description = lambda x: x['GeneID'].map(gene_desc_dict),
-                    #         HIDs = lambda x: x['GeneID'].map(gene_hid_dict),
-                    #         ProteinGIs = lambda x: x['GeneID'].map(gene_protgi_dict),
-                    #         ProteinRefs = lambda x: x['GeneID'].map(gene_protref_dict),
-                    # )
-                    # .pipe(assign_sra)
-                    # .pipe(set_protein_groups, temp_df, gene_protgi_dict, gene_protref_dict)
+        logging.info(
+            "Populating gene table for {}.".format(datetime.now(), usrdata.datafile)
         )
 
-        msg_areas = 'Calculating distributed area ratio for {}'.format(usrdata.datafile)
-        print_log_msg(df=None, msg=msg_areas)
-        distribute_area(temp_df, genes_df, 'SequenceArea', taxon_totals,
-                            not usrdata.no_taxa_redistrib)
+        # msg_areas = "Calculating peak areas for {}".format(usrdata.datafile)
+        # msg_sets = "Assigning gene sets and groups for {}".format(usrdata.datafile)
+
+        genes_df = (
+            create_df(temp_df)
+            .merge(qual_genes, on="GeneID")
+            # .pipe(get_gene_info, database)
+            # .pipe(get_peptides_for_gene, temp_df)
+            # .pipe(calc_coverage, database, temp_df)
+            # .pipe(get_psms_for_gene, temp_df)
+            # .pipe(print_log_msg, msg=msg_areas)
+            .pipe(calculate_full_areas, temp_df, "SequenceArea", normalize)
+            .assign(LabelFLAG=label)
+            # .pipe(print_log_msg, msg=msg_sets)
+            # .pipe(assign_gene_sets, temp_df)
+            # .pipe(set_gene_gpgroups, temp_df)
+            # .assign(Symbol = lambda x: x['GeneID'].map(gene_symbol_dict),
+            #         Description = lambda x: x['GeneID'].map(gene_desc_dict),
+            #         HIDs = lambda x: x['GeneID'].map(gene_hid_dict),
+            #         ProteinGIs = lambda x: x['GeneID'].map(gene_protgi_dict),
+            #         ProteinRefs = lambda x: x['GeneID'].map(gene_protref_dict),
+            # )
+            # .pipe(assign_sra)
+            # .pipe(set_protein_groups, temp_df, gene_protgi_dict, gene_protref_dict)
+        )
+
+        msg_areas = "Calculating distributed area ratio for {}".format(usrdata.datafile)
+        logging.info(msg_areas)
+        # print_log_msg(df=None, msg=msg_areas)
+        distribute_area(
+            temp_df,
+            genes_df,
+            "SequenceArea",
+            taxon_totals,
+            not usrdata.no_taxa_redistrib,
+        )
         now = datetime.now().strftime("%m/%d/%Y %H:%M:%S")
-        genes_df = (genes_df.pipe(calculate_gene_dstrarea, temp_df, normalize)
-                    # .pipe(calculate_gene_razorarea, temp_df, normalize)
-                    .assign(iBAQ_dstrAdj = lambda x:
-                            np.divide(x['AreaSum_dstrAdj'],
-                                      x['GeneCapacity']))
-                    .sort_values(by=['GPGroup'], ascending=True)
-                    .reset_index()
-                    # .assign(EXPRecNo = pd.Categorical(usrdata.recno),
-                    #         EXPRunNo = pd.Categorical(usrdata.runno),
-                    #         EXPSearchNo = pd.Categorical(usrdata.searchno),
-                    #         AddedBy = pd.Categorical(usrdata.added_by),
-                    #         CreationTS = pd.Categorical(now),
-                    #         ModificationTS = pd.Categorical(now))
-                    # .assign(EXPRecNo = usrdata.recno,
-                    #         EXPRunNo = usrdata.runno,
-                    #         EXPSearchNo = usrdata.searchno,
-                    #         AddedBy = usrdata.added_by,
-                    #         CreationTS = now,
-                    #         ModificationTS = now)
-                    .sort_values(by=['IDSet', 'GPGroup'])
+        genes_df = (
+            genes_df.pipe(calculate_gene_dstrarea, temp_df, normalize)
+            # .pipe(calculate_gene_razorarea, temp_df, normalize)
+            .assign(
+                iBAQ_dstrAdj=lambda x: np.divide(
+                    x["AreaSum_dstrAdj"], x["GeneCapacity"]
+                )
+            )
+            .sort_values(by=["GPGroup"], ascending=True)
+            .reset_index()
+            # .assign(EXPRecNo = pd.Categorical(usrdata.recno),
+            #         EXPRunNo = pd.Categorical(usrdata.runno),
+            #         EXPSearchNo = pd.Categorical(usrdata.searchno),
+            #         AddedBy = pd.Categorical(usrdata.added_by),
+            #         CreationTS = pd.Categorical(now),
+            #         ModificationTS = pd.Categorical(now))
+            # .assign(EXPRecNo = usrdata.recno,
+            #         EXPRunNo = usrdata.runno,
+            #         EXPSearchNo = usrdata.searchno,
+            #         AddedBy = usrdata.added_by,
+            #         CreationTS = now,
+            #         ModificationTS = now)
+            .sort_values(by=["IDSet", "GPGroup"])
         )
         if razor:
             genes_df = genes_df.pipe(calculate_gene_razorarea, temp_df, normalize)
@@ -2158,17 +2647,25 @@ def grouper(usrdata, outdir='', database=None,
         genecount += len(genes_df)
         ibaqtot += genes_df[~genes_df.GeneID.isin(gid_ignore_list)].iBAQ_dstrAdj.sum()
 
-        if usrdata.labeltype in ('TMT', 'iTRAQ', 'SILAC'):  # and silac
-            genedata_out = usrdata.output_name(regularize_filename(labelix)+'_e2g', ext='tsv')
-            genedata_out_chksum = os.path.join(usrdata.outdir, usrdata.output_name(str(labelix)+'_e2g', ext='md5'))
+        if usrdata.labeltype in ("TMT", "iTRAQ", "SILAC"):  # and silac
+            genedata_out = usrdata.output_name(
+                regularize_filename(label) + "_e2g", ext="tsv"
+            )
         else:
-            genedata_out = usrdata.output_name('e2g_QUANT', ext='tsv')
-            genedata_out_chksum = os.path.join(usrdata.outdir, usrdata.output_name('e2g', ext='md5'))
-        if razor and 'RazorArea' not in E2G_COLS:
-            E2G_COLS.append('AreaSum_razor')
+            genedata_out = usrdata.output_name("e2g_QUANT", ext="tsv")
+        if razor and "RazorArea" not in E2G_COLS:
+            E2G_COLS.append("AreaSum_razor")
         # genes_df.to_csv(os.path.join(usrdata.outdir, genedata_out), columns=E2G_COLS,
-        genes_df.to_csv(os.path.join(usrdata.outdir, genedata_out), columns=GENE_QUANT_COLS,
-                        index=False, encoding='utf-8', sep='\t')
+
+        _outf = os.path.join(usrdata.outdir, genedata_out)
+        genes_df.to_csv(
+            _outf,
+            columns=GENE_QUANT_COLS,
+            index=False,
+            encoding="utf-8",
+            sep="\t",
+        )
+        usrdata.e2g_files.append(_outf)
 
         # genedata_chksum = os.path.join(usrdata.outdir, usrdata.output_name('e2g', ext='md5'))
         # write_md5(genedata_chksum, md5sum(os.path.join(usrdata.outdir, genedata_out)))
@@ -2176,10 +2673,14 @@ def grouper(usrdata, outdir='', database=None,
         # write_md5(genedata_out_chksum, md5sum(os.path.join(usrdata.outdir, genedata_out)))
         del genes_df
 
-        usrdata.to_logq('{} | Export of genetable for labeltype {} completed.'.format(time.ctime(), label))
+        # usrdata.to_logq(
+        #     "{} | Export of genetable for labeltype {} completed.".format(
+        #         time.ctime(), label
+        #     )
+        # )
+        logging.info(f"Export of genetable for labeltype {label} completed.".format())
 
-
-<<<<<<< HEAD
+        # <<<<<<< HEAD
         # usrdata.to_logq('{} | Starting peptide ranking.'.format(time.ctime()))
         # data_cols = DATA_ID_COLS + DATA_QUANT_COLS
         # if usrdata.labeltype in ('TMT', 'iTRAQ'):
@@ -2195,22 +2696,22 @@ def grouper(usrdata, outdir='', database=None,
         # # ========================================================================= #
         # usrdata.df.drop('metadatainfo', axis=1, inplace=True)  # Don't need this
         #                                                    # column anymore.
-=======
-        usrdata.to_logq('{} | Starting peptide ranking.'.format(time.ctime()))
-        if usrdata.labeltype in ('TMT', 'iTRAQ'):
-            if usrdata.labeltype == 'TMT':
-                data_cols = DATA_COLS + ['TMT_126', 'TMT_127_N', 'TMT_127_C', 'TMT_128_N',
-                                        'TMT_128_C', 'TMT_129_N', 'TMT_129_C', 'TMT_130_N',
-                                         'TMT_130_C', 'TMT_131_N', 'TMT_131_C', 'QuanInfo', 'QuanUsage']
-            elif usrdata.labeltype == 'iTRAQ':
-                data_cols = DATA_COLS + ['iTRAQ_114', 'iTRAQ_115', 'iTRAQ_116', 'iTRAQ_117',
-                                        'QuanInfo', 'QuanUsage']
-            if razor:
-                data_cols.append('RazorArea')
-        # ========================================================================= #
-        usrdata.df.drop('metadatainfo', axis=1, inplace=True)  # Don't need this
-                                                           # column anymore.
->>>>>>> 7917bf8f89c5ef5c6c9af1609aad844b66bf7b6c
+        # =======
+        #         usrdata.to_logq('{} | Starting peptide ranking.'.format(time.ctime()))
+        #         if usrdata.labeltype in ('TMT', 'iTRAQ'):
+        #             if usrdata.labeltype == 'TMT':
+        #                 data_cols = DATA_COLS + ['TMT_126', 'TMT_127_N', 'TMT_127_C', 'TMT_128_N',
+        #                                         'TMT_128_C', 'TMT_129_N', 'TMT_129_C', 'TMT_130_N',
+        #                                          'TMT_130_C', 'TMT_131_N', 'TMT_131_C', 'QuanInfo', 'QuanUsage']
+        #             elif usrdata.labeltype == 'iTRAQ':
+        #                 data_cols = DATA_COLS + ['iTRAQ_114', 'iTRAQ_115', 'iTRAQ_116', 'iTRAQ_117',
+        #                                         'QuanInfo', 'QuanUsage']
+        #             if razor:
+        #                 data_cols.append('RazorArea')
+        #         # ========================================================================= #
+        #         usrdata.df.drop('metadatainfo', axis=1, inplace=True)  # Don't need this
+        #                                                            # column anymore.
+        # >>>>>>> 7917bf8f89c5ef5c6c9af1609aad844b66bf7b6c
 
         # if len(usrdata.df) == 0:
         #     print('No protein information for {}.\n'.format(repr(usrdata)))
@@ -2218,14 +2719,13 @@ def grouper(usrdata, outdir='', database=None,
         #     usrdata.flush_log()
         #     return
 
-        #usrdata.df['HIDs'] = ''  # will be populated later
-        #usrdata.df['HIDCount'] = ''  # will be populated later
+        # usrdata.df['HIDs'] = ''  # will be populated later
+        # usrdata.df['HIDCount'] = ''  # will be populated later
 
-
-        usrdata.to_logq('{} | Starting peptide ranking.'.format(time.ctime()))
+        logging.info("Starting peptide ranking.")
         # dstr_area = 'PrecursorArea_dstrAdj'
         # area_col_to_use = dstr_area if dstr_area in usrdata.df.columns else orig_area_col
-        area_col_to_use = 'PrecursorArea_dstrAdj'
+        area_col_to_use = "PrecursorArea_dstrAdj"
 
         # rank_df = pd.DataFrame()
         # if 'LabelFLAG' not in isobar_output:
@@ -2252,34 +2752,47 @@ def grouper(usrdata, outdir='', database=None,
         # import psutil; print('\n', psutil.virtual_memory())
         # process = psutil.Process( os.getpid() )
 
-        newcols = list( set(temp_df.columns) - set(dfm.columns) )
+        newcols = list(set(temp_df.columns) - set(dfm.columns))
         dfm = dfm.join(temp_df[newcols])
         # usrdata.df = (pd.merge(usrdata.df, temp_df, how='left')
         # usrdata.df = (usrdata.df.join(temp_df[newcols])
         # ranked = (dfm.join(temp_df[newcols])[['GeneID', area_col_to_use, 'SequenceModi', 'Charge',
-        ranked = (dfm[['GeneID', area_col_to_use, 'SequenceModi', 'Charge',
-                                              'PSM_IDG', 'IonScore', 'PEP', 'q_value', 'Modifications',
-                                              'AUC_UseFLAG', 'PSM_UseFLAG', 'Peak_UseFLAG', 'LabelFLAG']]
-                  .pipe(rank_peptides, area_col='PrecursorArea_dstrAdj',
-                        ranks_only=True)
-                  # .assign(PrecursorArea_split = lambda x: x['PrecursorArea'],
-                  # .assign(PeptRank = lambda x: (x['PeptRank']
-                  #                               .fillna(0)
-                  #                               .astype(np.integer))
-                  # )
+        ranked = (
+            dfm[
+                [
+                    "GeneID",
+                    area_col_to_use,
+                    "SequenceModi",
+                    "Charge",
+                    "PSM_IDG",
+                    "IonScore",
+                    "PEP",
+                    "q_value",
+                    "Modifications",
+                    "AUC_UseFLAG",
+                    "PSM_UseFLAG",
+                    "Peak_UseFLAG",
+                    "LabelFLAG",
+                ]
+            ].pipe(rank_peptides, area_col="PrecursorArea_dstrAdj", ranks_only=True)
+            # .assign(PrecursorArea_split = lambda x: x['PrecursorArea'],
+            # .assign(PeptRank = lambda x: (x['PeptRank']
+            #                               .fillna(0)
+            #                               .astype(np.integer))
+            # )
         )
-        ranked = ranked.fillna(0).astype(int).to_frame('PeptRank')
+        ranked = ranked.fillna(0).astype(int).to_frame("PeptRank")
         dfm = dfm.join(ranked)
 
         # usrdata.df['ModificationTS'] = datetime.now().strftime("%m/%d/%Y %H:%M:%S")
         # usrdata.df['PrecursorArea_split'] = usrdata.df['PrecursorArea']
         # import psutil; print('\n', psutil.virtual_memory())
-                              # didn't get a rank gets a rank of 0
-        msg = 'Peptide ranking complete for {}.'.format(usrdata.datafile)
-        print_log_msg(msg=msg)
+        # didn't get a rank gets a rank of 0
+        msg = "Peptide ranking complete for {}.".format(usrdata.datafile)
+        logging.info(msg)
+        # print_log_msg(msg=msg)
 
-
-<<<<<<< HEAD
+        # <<<<<<< HEAD
         # data_cols = DATA_COLS
         # if usrdata.labeltype in ('TMT', 'iTRAQ'):
         #     if usrdata.labeltype == 'TMT':
@@ -2294,105 +2807,123 @@ def grouper(usrdata, outdir='', database=None,
         # if not all(x in usrdata.df.columns.values for x in set(data_cols) - set(_EXTRA_COLS)):
         #     print('Potential error, not all columns filled.')
         #     print([x for x in data_cols if x not in usrdata.df.columns.values])
-=======
-        data_cols = DATA_COLS
-        if usrdata.labeltype in ('TMT', 'iTRAQ'):
-            if usrdata.labeltype == 'TMT':
-                data_cols = DATA_COLS + ['TMT_126', 'TMT_127_N', 'TMT_127_C', 'TMT_128_N',
-                                        'TMT_128_C', 'TMT_129_N', 'TMT_129_C', 'TMT_130_N',
-                                         'TMT_130_C', 'TMT_131_N', 'TMT_131_C', 'QuanInfo', 'QuanUsage']
-            elif usrdata.labeltype == 'iTRAQ':
-                data_cols = DATA_COLS + ['iTRAQ_114', 'iTRAQ_115', 'iTRAQ_116', 'iTRAQ_117',
-                                        'QuanInfo', 'QuanUsage']
-            if razor and 'RazorArea' not in data_cols:
-                data_cols.append('RazorArea')
-        if not all(x in usrdata.df.columns.values for x in set(data_cols) - set(_EXTRA_COLS)):
-            print('Potential error, not all columns filled.')
-            print([x for x in data_cols if x not in usrdata.df.columns.values])
->>>>>>> 7917bf8f89c5ef5c6c9af1609aad844b66bf7b6c
+        # =======
+        #         data_cols = DATA_COLS
+        #         if usrdata.labeltype in ('TMT', 'iTRAQ'):
+        #             if usrdata.labeltype == 'TMT':
+        #                 data_cols = DATA_COLS + ['TMT_126', 'TMT_127_N', 'TMT_127_C', 'TMT_128_N',
+        #                                         'TMT_128_C', 'TMT_129_N', 'TMT_129_C', 'TMT_130_N',
+        #                                          'TMT_130_C', 'TMT_131_N', 'TMT_131_C', 'QuanInfo', 'QuanUsage']
+        #             elif usrdata.labeltype == 'iTRAQ':
+        #                 data_cols = DATA_COLS + ['iTRAQ_114', 'iTRAQ_115', 'iTRAQ_116', 'iTRAQ_117',
+        #                                         'QuanInfo', 'QuanUsage']
+        #             if razor and 'RazorArea' not in data_cols:
+        #                 data_cols.append('RazorArea')
+        #         if not all(x in usrdata.df.columns.values for x in set(data_cols) - set(_EXTRA_COLS)):
+        #             print('Potential error, not all columns filled.')
+        #             print([x for x in data_cols if x not in usrdata.df.columns.values])
+        # >>>>>>> 7917bf8f89c5ef5c6c9af1609aad844b66bf7b6c
 
-        out = os.path.join(usrdata.outdir, usrdata.output_name(regularize_filename(labelix)+'_psms', ext='tsv'))
+        _outf = os.path.join(
+            usrdata.outdir,
+            usrdata.output_name(regularize_filename(label) + "_psms", ext="tsv"),
+        )
         # out = os.path.join(usrdata.outdir, usrdata.output_name('psms', ext='tab'))
 
         Q_COLS = [x for x in DATA_QUANT_COLS if x in dfm]
         not_Q_COLS = [x for x in DATA_QUANT_COLS if x not in dfm]
-        if not_Q_COLS:
-            print("Potential error, some quant cols missing: {}".format(', '.join(not_Q_COLS)))
+        # if not_Q_COLS:
+        #     logging.info(
+        #         "Potential error, some quant cols missing: {}".format(
+        #             ", ".join(not_Q_COLS)
+        #         )
+        #     )
 
-        dfm.to_csv(out, index=False, encoding='utf-8', sep='\t', columns=Q_COLS)
+        dfm.to_csv(_outf, index=False, encoding="utf-8", sep="\t", columns=Q_COLS)
+        usrdata.psm_files.append(_outf)
 
-        # out_chksum = os.path.join(usrdata.outdir, usrdata.output_name(regularize_filename(labelix)+'_psms', ext='md5'))
-        # out_chksum = os.path.join(usrdata.outdir, usrdata.output_name('psms', ext='md5'))
-        # write_md5(out_chksum, md5sum(os.path.join(out)))
-
-        msfname = usrdata.output_name('{}_msf'.format(regularize_filename(labelix)), ext='tsv')
+        msfname = usrdata.output_name("msf", ext="tsv")
         # msfname = usrdata.output_name('msf', ext='tab')
         msfdata = spectra_summary(usrdata, dfm)
-        msfdata.to_csv(os.path.join(usrdata.outdir, msfname), index=False, sep='\t')
-
-        # out_md5 = os.path.join(usrdata.outdir, usrdata.output_name('msf', ext='md5'))
-        # write_md5(out_md5, md5sum(os.path.join(usrdata.outdir, msfname)))
-
+        _outf = os.path.join(usrdata.outdir, msfname)
+        msfdata.to_csv(_outf, index=False, sep="\t")
+        logging.info(f"Wrote {_outf}")
+        # usrdata.msf_files.append(_outf)
 
         usrdata.df = None
 
-    export_metadata(program_title=program_title, usrdata=usrdata,
-                    matched_psms=matched_psms, unmatched_psms=unmatched_psms,
-                    usrfile=usrfile, taxon_totals=usrdata.taxon_ratio_totals,
-                    outname=usrdata.output_name('metadata', ext='json'), outpath=usrdata.outdir)
-
+    export_metadata(
+        program_title=program_title,
+        usrdata=usrdata,
+        matched_psms=matched_psms,
+        unmatched_psms=unmatched_psms,
+        usrfile=usrdata.datafile,
+        taxon_totals=usrdata.taxon_ratio_totals,
+        outname=usrdata.output_name("metadata", ext="json"),
+        outpath=usrdata.outdir,
+    )
 
     # we don't need any of this anymore
-    if usrdata.labeltype in ('TMT', 'iTRAQ', 'SILAC'):
+    if usrdata.labeltype in ("TMT", "iTRAQ", "SILAC"):
+        # TODO fix this to concat dict of dataframes instead of loading files
+        # OR NOT?
 
-        # data_cols = DATA_COLS
-        # if usrdata.labeltype in ('TMT', 'iTRAQ'):
-        #     if usrdata.labeltype == 'TMT':
-        #         data_cols = DATA_COLS + ['TMT_126', 'TMT_127_N', 'TMT_127_C', 'TMT_128_N',
-        #                                  'TMT_128_C', 'TMT_129_N', 'TMT_129_C', 'TMT_130_N',
-        #                                  'TMT_130_C', 'TMT_131', 'QuanInfo', 'QuanUsage']
-        #     elif usrdata.labeltype == 'iTRAQ':
-        #         data_cols = DATA_COLS + ['iTRAQ_114', 'iTRAQ_115', 'iTRAQ_116', 'iTRAQ_117',
-        #                                  'QuanInfo', 'QuanUsage']
+        #  concat_isobar_output(
+        #      usrdata.recno,
+        #      usrdata.runno,
+        #      usrdata.searchno,
+        #      usrdata.outdir,
+        #      usrdata.output_name(suffix="e2g_QUANT"),
+        #      labeltype=usrdata.labeltype,
+        #      datatype="e2g",
+        #  )
 
+        _df = pd.concat(
+            [pd.read_table(x) for x in usrdata.e2g_files if "QUAL" not in x]
+        )
+        _outf = os.path.join(usrdata.outdir, usrdata.output_name(suffix="e2g_QUANT"))
+        _overlapping_cols = [x for x in GENE_QUANT_COLS if x in _df]
+        _df.to_csv(_outf, columns=_overlapping_cols, index=False, sep="\t")
+        logging.info(f"Wrote {_outf}")
 
-<<<<<<< HEAD
-=======
-        data_cols = DATA_COLS
-        if usrdata.labeltype in ('TMT', 'iTRAQ'):
-            if usrdata.labeltype == 'TMT':
-                data_cols = DATA_COLS + ['TMT_126', 'TMT_127_N', 'TMT_127_C', 'TMT_128_N',
-                                         'TMT_128_C', 'TMT_129_N', 'TMT_129_C', 'TMT_130_N',
-                                         'TMT_130_C', 'TMT_131_N', 'TMT_131_C', 'QuanInfo', 'QuanUsage']
-            elif usrdata.labeltype == 'iTRAQ':
-                data_cols = DATA_COLS + ['iTRAQ_114', 'iTRAQ_115', 'iTRAQ_116', 'iTRAQ_117',
-                                         'QuanInfo', 'QuanUsage']
-            if razor and 'RazorArea' not in data_cols:
-                data_cols.append('RazorArea')
->>>>>>> 7917bf8f89c5ef5c6c9af1609aad844b66bf7b6c
-        # if not all(x in isobar_output.columns.values for x in set(data_cols) - set(_EXTRA_COLS)):
-        #     print('Potential error, not all columns filled.')
-        #     print([x for x in data_cols if x not in isobar_output.columns.values])
-        # data_cols = [x for x in data_cols if x in isobar_output.columns.values]
-        concat_isobar_output(usrdata.recno, usrdata.runno, usrdata.searchno, usrdata.outdir,
-                             usrdata.output_name(suffix='e2g_QUANT'), labeltype=usrdata.labeltype,
-                             datatype='e2g')
+        data_cols = DATA_QUANT_COLS
+        if razor and "RazorArea" not in data_cols:
+            data_cols.append("RazorArea")
 
-    data_cols = DATA_QUANT_COLS
-    if razor and 'RazorArea' not in data_cols:
-        data_cols.append('RazorArea')
+        _df = pd.concat(
+            [pd.read_table(x) for x in usrdata.psm_files if "QUAL" not in x]
+        )
+        _outf = os.path.join(usrdata.outdir, usrdata.output_name(suffix="psm_QUANT"))
+        _overlapping_cols = [x for x in data_cols if x in _df]
+        _df.to_csv(_outf, index=False, columns=_overlapping_cols, sep="\t")
+        logging.info(f"Wrote {_outf}")
 
-    # usrdata.df = pd.merge(usrdata.df, temp_df, how='left')
-    concat_isobar_output(usrdata.recno, usrdata.runno, usrdata.searchno, usrdata.outdir,
-                         usrdata.output_name(suffix='psms_QUANT'), labeltype=usrdata.labeltype,
-                         datatype='psms', cols=data_cols)
+        usrdata.clean()
 
-    concat_isobar_output(usrdata.recno, usrdata.runno, usrdata.searchno, usrdata.outdir,
-                         usrdata.output_name(suffix='msf'), labeltype=usrdata.labeltype,
-                         datatype='msf')
+    #  # usrdata.df = pd.merge(usrdata.df, temp_df, how='left')
+    #  concat_isobar_output(
+    #      usrdata.recno,
+    #      usrdata.runno,
+    #      usrdata.searchno,
+    #      usrdata.outdir,
+    #      usrdata.output_name(suffix="psms_QUANT"),
+    #      labeltype=usrdata.labeltype,
+    #      datatype="psms",
+    #      cols=data_cols,
+    #  )
 
-        # isobar_output.to_csv(os.path.join(usrdata.outdir, usrdata_out), columns=data_cols,
-        #                      index=False, encoding='utf-8', sep='\t')
+    #  concat_isobar_output(
+    #      usrdata.recno,
+    #      usrdata.runno,
+    #      usrdata.searchno,
+    #      usrdata.outdir,
+    #      usrdata.output_name(suffix="msf"),
+    #      labeltype=usrdata.labeltype,
+    #      datatype="msf",
+    #  )
+
+    # isobar_output.to_csv(os.path.join(usrdata.outdir, usrdata_out), columns=data_cols,
+    #                      index=False, encoding='utf-8', sep='\t')
     # else:
     #     if not all(x in usrdata.df.columns.values for x in set(data_cols) - set(_EXTRA_COLS)):
     #         print('Potential error, not all columns filled.')
@@ -2401,16 +2932,20 @@ def grouper(usrdata, outdir='', database=None,
     #     usrdata.df.to_csv(os.path.join(usrdata.outdir, usrdata_out), columns=data_cols,
     #                       index=False, encoding='utf-8', sep='\t')
 
-    out = os.path.join(usrdata.outdir, usrdata.output_name('species_ratios', ext='tsv'))
+    out = os.path.join(usrdata.outdir, usrdata.output_name("species_ratios", ext="tsv"))
     label_taxonratios = pd.DataFrame(label_taxon)
-    label_taxonratios.to_csv(out, index=True, encoding='utf-8', sep='\t')
+    label_taxonratios.to_csv(out, index=True, encoding="utf-8", sep="\t")
 
-    usrdata.to_logq('{} | Export of datatable completed.'.format(time.ctime())+
-                    '\nSuccessful grouping of file completed.')
+    usrdata.to_logq(
+        "{} | Export of datatable completed.".format(time.ctime())
+        + "\nSuccessful grouping of file completed."
+    )
     usrdata.flush_log()
 
+    print("Successful grouping of {} completed.\n".format(repr(usrdata)))
 
-    print('Successful grouping of {} completed.\n'.format(repr(usrdata)))
+    return
+
 
 def calculate_breakup_size(row_number):
     # print(32)
@@ -2418,39 +2953,48 @@ def calculate_breakup_size(row_number):
     # return ceil(row_number/32)
     return ceil(row_number)
 
+
 def set_modifications(usrdata):
-    to_replace = {'DeStreak' : 'des', 'Deamidated' : 'dam', 'Carbamidomethyl' : 'car',
-                  'Oxidation' : 'oxi', 'Phospho' : 'pho',
-                  'Acetyl': 'ace', 'GlyGly' : 'gg', 'Label:13C(6)' : 'lab',
-                  'Label:13C(6)+GlyGly' : 'labgg',
-<<<<<<< HEAD
-                  '\)\(': ':'}
-    modis_abbrev = usrdata.Modifications.fillna('').replace(regex=to_replace).fillna('')
-=======
-    '\)\(': ':'}
-    modis_abbrev = usrdata.Modifications.fillna('').replace(regex=to_replace)
->>>>>>> 7917bf8f89c5ef5c6c9af1609aad844b66bf7b6c
-    modis_abbrev.name = 'Modifications_abbrev'
+    to_replace = {
+        "DeStreak": "des",
+        "Deamidated": "dam",
+        "Carbamidomethyl": "car",
+        "Oxidation": "oxi",
+        "Phospho": "pho",
+        "Acetyl": "ace",
+        "GlyGly": "gg",
+        "Label:13C(6)": "lab",
+        "Label:13C(6)+GlyGly": "labgg",
+        "\)\(": ":",
+    }
+    modis_abbrev = usrdata.Modifications.fillna("").replace(regex=to_replace).fillna("")
+    modis_abbrev.name = "Modifications_abbrev"
     usrdata = usrdata.join(modis_abbrev)
 
     # labels = usrdata.Modifications.str.extract('(Label\S+)(?=\))').unique()  # for SILAC
-    no_count = 'tmt', 'itraq', 'Label'
+    no_count = "tmt", "itraq", "Label"
 
-    modifications = usrdata.apply(lambda x :
-                                  seq_modi(x['Sequence'],
-                                           x['Modifications_abbrev'],
-                                           no_count,
-                                           # labels=labels
-                                  ),
-                                  axis=1
+    modifications = usrdata.apply(
+        lambda x: seq_modi(
+            x["Sequence"],
+            x["Modifications_abbrev"],
+            no_count,
+            # labels=labels
+        ),
+        axis=1,
     )
-    (usrdata['Sequence'], usrdata['SequenceModi'],
-     usrdata['SequenceModiCount'], usrdata['LabelFLAG']) = zip(*modifications)
+    (
+        usrdata["Sequence"],
+        usrdata["SequenceModi"],
+        usrdata["SequenceModiCount"],
+        usrdata["LabelFLAG"],
+    ) = zip(*modifications)
     return usrdata
 
+
 def load_fasta(refseq_file):
-    REQUIRED_COLS = ('geneid', 'sequence')
-    ADDITIONAL_COLS = ('description', 'gi', 'homologene', 'ref', 'taxon', 'symbol')
+    REQUIRED_COLS = ("geneid", "sequence")
+    ADDITIONAL_COLS = ("description", "gi", "homologene", "ref", "taxon", "symbol")
     gen = fasta_dict_from_file(refseq_file)
     df = pd.DataFrame.from_dict(gen)  # dtype is already string via RefProtDB
 
@@ -2474,66 +3018,82 @@ def load_fasta(refseq_file):
     # df = (pd.DataFrame.from_dict(l)
     #       # .replace(np.nan, '')
     # )
-    if not all(x in df.columns for x in REQUIRED_COLS):
-        missing = ', '.join(x for x in REQUIRED_COLS if x not in df.columns)
-        fmt = 'Invalid FASTA file : {} is missing the following identifiers : {}\n'
-        raise ValueError(fmt.format(refseq_file, missing))
+
+    # if not all(x in df.columns for x in REQUIRED_COLS):
+    #     missing = ", ".join(x for x in REQUIRED_COLS if x not in df.columns)
+    #     fmt = "Invalid FASTA file : {} is missing the following identifiers : {}\n"
+    #     raise ValueError(fmt.format(refseq_file, missing))
     missing_cols = (x for x in ADDITIONAL_COLS if x not in df.columns)
     for col in missing_cols:
-        df[col] = ''
+        df[col] = ""
     return df
 
-<<<<<<< HEAD
-ENZYME = {'trypsin/P': dict(cutsites=('K', 'R'), exceptions=None),
-          'trypsin': dict(cutsites=('K', 'R'), exceptions=('P',)),
-          'chymotrypsin': dict(cutsites=('Y', 'W', 'F'), exceptions=None),
-=======
-ENZYME = {'trypsin': dict(cutsites=('K', 'R'), exceptions=('P',)),
-          'trypsin/P': dict(cutsites=('K', 'R'), exceptions=None),
-          'chymotrypsin': dict(cutsites=('Y', 'W', 'F', 'L'), exceptions=None),
->>>>>>> 7917bf8f89c5ef5c6c9af1609aad844b66bf7b6c
-          'LysC': dict(cutsites=('K',), exceptions=None),
-          'GluC': dict(cutsites=('E',), exceptions=None),
-          'ArgC': dict(cutsites=('R',), exceptions=None),
+
+ENZYME = {
+    "trypsin": dict(cutsites=("K", "R"), exceptions=("P",)),
+    "trypsin/P": dict(cutsites=("K", "R"), exceptions=None),
+    "chymotrypsin": dict(cutsites=("Y", "W", "F", "L"), exceptions=None),
+    "LysC": dict(cutsites=("K",), exceptions=None),
+    "GluC": dict(cutsites=("E",), exceptions=None),
+    "ArgC": dict(cutsites=("R",), exceptions=None),
 }
 # TODO: add the rest
- # 'LysN', 'ArgC'
+# 'LysN', 'ArgC'
 
-def _match(usrdatas, refseq_file, miscuts=2, enzyme='trypsin/P', semi_tryptic=False, semi_tryptic_iter=6, min_pept_len=7):
 
-    enzyme_rule = ENZYME[enzyme]
-    print(u'Using peptidome {} with rule {}'.format(refseq_file, enzyme))
+def _match(
+    usrdatas,
+    refseq_file,
+    miscuts=2,
+    enzyme="trypsin/P",
+    semi_tryptic=False,
+    semi_tryptic_iter=6,
+    min_pept_len=7,
+):
+
+    # expand later
+    enzyme_rule = parser.expasy_rules[enzyme]
+    print("Using peptidome {} with rule {}".format(refseq_file, enzyme))
 
     # database = pd.read_table(refseq_file, dtype=str)
     # rename_refseq_cols(database, refseq_file)
     database = load_fasta(refseq_file)
-    database['capacity'] = np.nan
+    database["capacity"] = np.nan
     breakup_size = calculate_breakup_size(len(database))
     counter = 0
     prot = defaultdict(list)
     for ix, row in database.iterrows():
         counter += 1
-        fragments, fraglen = protease(row.sequence, minlen=min_pept_len,
-                                      # cutsites=['K', 'R'],
-                                      # exceptions=['P'],
-                                      miscuts=miscuts,
-                                      semi_tryptic=semi_tryptic,
-                                      semi_tryptic_iter=semi_tryptic_iter,
-                                      **enzyme_rule
+        fragments, fraglen = protease(
+            row.sequence,
+            minlen=min_pept_len,
+            # cutsites=['K', 'R'],
+            # exceptions=['P'],
+            rule=enzyme_rule,
+            miscuts=miscuts,
+            semi_tryptic=semi_tryptic,  # not functional
+            semi_tryptic_iter=semi_tryptic_iter,
+            # **enzyme_rule,
         )
-        database.loc[ix, 'capacity'] = fraglen
-        for fragment in fragments: # store location in the DataFrame for the peptide's parent
+        database.loc[ix, "capacity"] = fraglen
+        for (
+            fragment
+        ) in fragments:  # store location in the DataFrame for the peptide's parent
             prot[fragment].append(ix)
 
         if counter > breakup_size:
             for usrdata in usrdatas:
-                usrdata.df = peptidome_matcher(usrdata.df, prot)  # match peptides to peptidome
+                usrdata.df = peptidome_matcher(
+                    usrdata.df, prot
+                )  # match peptides to peptidome
             counter = 0
-            del prot # frees up memory, can get quite large otherwise
+            del prot  # frees up memory, can get quite large otherwise
             prot = defaultdict(list)
     else:
         for usrdata in usrdatas:
-            usrdata.df  = peptidome_matcher(usrdata.df, prot)  # match peptides to peptidome
+            usrdata.df = peptidome_matcher(
+                usrdata.df, prot
+            )  # match peptides to peptidome
         del prot
 
     # now extract info based on index
@@ -2544,7 +3104,16 @@ def _match(usrdatas, refseq_file, miscuts=2, enzyme='trypsin/P', semi_tryptic=Fa
 
     return database
 
-def match(usrdatas, refseqs, enzyme='trypsin/P', semi_tryptic=False, min_pept_len=7, semi_tryptic_iter=6, miscuts=2):
+
+def match(
+    usrdatas,
+    refseqs,
+    enzyme="trypsin/P",
+    semi_tryptic=False,
+    min_pept_len=7,
+    semi_tryptic_iter=6,
+    miscuts=2,
+):
     """
     Match psms with fasta database
     Input is list of UserData objects and an optional dictionary of refseqs
@@ -2560,16 +3129,22 @@ def match(usrdatas, refseqs, enzyme='trypsin/P', semi_tryptic=False, min_pept_le
         refseq = refseqs.get(taxonid)
 
         if refseq is None:
-            err = 'No refseq file available for {}'.format(taxonid)
+            err = "No refseq file available for {}".format(taxonid)
             warn(err)
             for u in group:
                 u.ERROR = err
                 u.EXIT_CODE = 1
             continue
 
-        database = _match(group, refseq, miscuts=miscuts, enzyme=enzyme, semi_tryptic=semi_tryptic,
-                          semi_tryptic_iter=semi_tryptic_iter,
-                          min_pept_len=min_pept_len)
+        database = _match(
+            group,
+            refseq,
+            miscuts=miscuts,
+            enzyme=enzyme,
+            semi_tryptic=semi_tryptic,
+            semi_tryptic_iter=semi_tryptic_iter,
+            min_pept_len=min_pept_len,
+        )
         databases[taxonid] = database
     # for organism in refseqs:
     #     if any(x == int(organism) for x in inputdata_refseqs):
@@ -2581,100 +3156,102 @@ def match(usrdatas, refseqs, enzyme='trypsin/P', semi_tryptic=False, min_pept_le
 
     return databases
 
+
 def column_identifier(df, aliases):
     column_names = dict()
     for col in aliases:
         for alias in aliases[col]:
-            name = [dfcolumn for dfcolumn in df.columns if dfcolumn==alias]
-            if len(name)==1:
+            name = [dfcolumn for dfcolumn in df.columns if dfcolumn == alias]
+            if len(name) == 1:
                 column_names[col] = name[0]
                 break
     return column_names
 
+
 # Idea
-REQUIRED_HEADERS = ['Sequence', 'Modifications', 'PrecursorArea',
-                    'Charge', 'IonScore', 'q_value', 'PEP', 'SpectrumFile',
-                    'RTmin', 'DeltaMassPPM']
+REQUIRED_HEADERS = [
+    "Sequence",
+    "Modifications",
+    "PrecursorArea",
+    "Charge",
+    "IonScore",
+    "q_value",
+    "PEP",
+    "SpectrumFile",
+    "RTmin",
+    "DeltaMassPPM",
+]
+
+
 def check_required_headers(df):
     if not all(x in df.columns for x in REQUIRED_HEADERS):
         missing = [x for x in REQUIRED_HEADERS if x not in df.columns]
-        if 'Modifications' in missing and 'SequenceModi' in df:
+        if "Modifications" in missing and "SequenceModi" in df:
             # then we are OK
             return
-        fmt = 'Invalid input file, missing {}'.format(', '.join(missing))
+        fmt = "Invalid input file, missing {}".format(", ".join(missing))
         raise ValueError(fmt)
 
 
-def set_up(usrdatas, column_aliases, enzyme='trypsin/P', protein_column=None):
+def set_up(usrdatas, column_aliases, enzyme="trypsin/P", protein_column=None):
     """Set up the usrdata class for analysis
     Read data, rename columns (if appropriate), populate base data"""
     for usrdata in usrdatas:
-        EXIT_CODE = usrdata.read_csv(sep='\t',)  # read from the stored psms file
+        EXIT_CODE = usrdata.read_csv(
+            sep="\t",
+        )  # read from the stored psms file
         if EXIT_CODE != 0:
-            print('Error with reading {!r}'.format(usrdata))
+            logging.error("Error with reading {!r}".format(usrdata))
             continue
         if column_aliases:
-            standard_names = column_identifier(usrdata.df, column_aliases)
-<<<<<<< HEAD
-            protected_names = ['Modified sequence', 'SequenceModi']
+            standard_name_mapper = column_identifier(usrdata.df, column_aliases)
+            protected_names = ["Modified sequence", "SequenceModi"]
             if protein_column:
                 protected_names.append(protein_column)
 
-
-            rev_mapping = {v: k for k,v in standard_names.items()}
+            rev_mapping = {v: k for k, v in standard_name_mapper.items()}
 
             if protein_column is not None:
                 protein_column_out = rev_mapping.get(protein_column, protein_column)
             else:
                 protein_column_out = None
 
-            usrdata.df.rename(columns=rev_mapping,
-=======
-            protected_names = ('Modified sequence')
-            duplicate_cols = list()
-            for k,v in standard_names.items():
-                if k != v and k in usrdata.df.columns:
-                    # duplicate column identified
-                    # for example if Sequence and Annotated Sequence are present,
-                    # and we only want to keep Annotated Sequence, we need to
-                    # remove Sequence because Annotated Sequence will be renamed
-                    # to Sequence, and we will have 2 sequence columns
-                    duplicate_cols.append(k)
-            usrdata.df = usrdata.df.drop(duplicate_cols, axis=1)
-
-            usrdata.df.rename(columns={v: k
-                                       for k,v in standard_names.items()},
->>>>>>> 7917bf8f89c5ef5c6c9af1609aad844b66bf7b6c
-                              inplace=True
+            usrdata.df.rename(
+                columns=rev_mapping,
+                inplace=True,
             )
-            redundant_cols = [x for x in usrdata.df.columns if
-                              (x not in standard_names.keys() and
-                               x not in protected_names)
+            redundant_cols = [
+                x
+                for x in usrdata.df.columns
+                if (x not in standard_name_mapper.keys() and x not in protected_names)
             ]
-            # print(usrdata.df.memory_usage().sum())
-            usrdata.df = usrdata.df.drop(redundant_cols, axis=1)
-            # print(usrdata.df.memory_usage().sum())
+            # usrdata.df = usrdata.df.drop(redundant_cols, axis=1)
+
         # usrdata.df = usrdata.populate_base_data()
         # some data exports include positional info about sequences
         # such as: [K].xxxxxxxxxxxK.[N]
         # we want to remove that and only have the exact peptide sequence
-        usrdata.df['Sequence'] = usrdata.df.Sequence.str.extract('(\w{3,})', expand=False)
+        usrdata.df["Sequence"] = usrdata.df.Sequence.str.extract(
+            "(\w{3,})", expand=False
+        )
         usrdata.populate_base_data()
-        if 'DeltaMassPPM' not in usrdata.df:
-            usrdata.df['DeltaMassPPM'] = 0
-        if 'SpectrumFile' not in usrdata.df:
-            usrdata.df['SpectrumFile'] = ''
-        if 'RTmin' not in usrdata.df:
-            usrdata.df['RTmin'] = 0
-        if 'PEP' not in usrdata.df.columns:
-            usrdata.df['PEP'] = 0  # not trivial to make a category due to sorting
+        if "DeltaMassPPM" not in usrdata.df:
+            usrdata.df["DeltaMassPPM"] = 0
+        if "SpectrumFile" not in usrdata.df:
+            usrdata.df["SpectrumFile"] = ""
+        if "RTmin" not in usrdata.df:
+            usrdata.df["RTmin"] = 0
+        if "PEP" not in usrdata.df.columns:
+            usrdata.df["PEP"] = 0  # not trivial to make a category due to sorting
             # usrdata.categorical_assign('PEP', 0, ordered=True)
-        if not 'q_value' in usrdata.df.columns:
-            try:
-                usrdata.df['q_value'] = usrdata.df['PEP'] / 10  # rough approximation
-            except KeyError:
-                warn('No q_value available')
-                usrdata.df['q_value'] = 0
+        if not "q_value" in usrdata.df.columns:
+            logging.warning("No q_value available")
+            usrdata.df["q_value"] = 0
+            # try:
+            #     usrdata.df["q_value"] = usrdata.df["PEP"] / 10  # rough approximation
+            # except KeyError:
+            #     warn("")
+            #     usrdata.df["q_value"] = 0
 
         check_required_headers(usrdata.df)
 
@@ -2683,59 +3260,96 @@ def set_up(usrdatas, column_aliases, enzyme='trypsin/P', protein_column=None):
         #                                               exceptions=exceptions ),
         #                  axis=1)
 
-        if 'MissedCleavages' not in usrdata.df.columns:
-            targets, exceptions = ENZYME[enzyme]['cutsites'], ENZYME[enzyme]['exceptions']
-            usrdata.df['MissedCleavages'] =\
-                                        usrdata.df.apply(lambda x:\
-                                                         calculate_miscuts(x['Sequence'],
-                                                                           targets=targets,
-                                                                           exceptions=exceptions
-                                                                           ),
-                                                         axis=1)
-        if not 'PSMAmbiguity' in usrdata.df.columns:
+        if "MissedCleavages" not in usrdata.df.columns:
+            targets, exceptions = (
+                ENZYME[enzyme]["cutsites"],
+                ENZYME[enzyme]["exceptions"],
+            )
+            usrdata.df["MissedCleavages"] = usrdata.df.apply(
+                lambda x: calculate_miscuts(
+                    x["Sequence"], targets=targets, exceptions=exceptions
+                ),
+                axis=1,
+            )
+        if not "PSMAmbiguity" in usrdata.df.columns:
             # usrdata.df['PSMAmbiguity'] = 'Unambiguous'
-            usrdata.categorical_assign('PSMAmbiguity', 'Umambiguous')  # okay?
-        if not usrdata.pipeline == 'MQ' and not any(x in usrdata.df for x in ('Modified sequence', 'SequenceModi')):  # MaxQuant already has modifications
+            usrdata.categorical_assign("PSMAmbiguity", "Umambiguous")  # okay?
+
+        # ===================================================================
+
+        if not usrdata.pipeline == "MQ" and not any(
+            x in usrdata.df for x in ("Modified sequence", "SequenceModi")
+        ):  # MaxQuant already has modifications
             usrdata.df = set_modifications(usrdata.df)
         else:
             # usrdata.df['SequenceModi'] = usrdata.df['Modified sequence']
-            usrdata.df.rename(columns={'Modified sequence': 'SequenceModi'},
-                              inplace=True)
-            if 'Modifications' in usrdata.df:
-                usrdata.df['SequenceModiCount'] = count_modis_maxquant(usrdata.df,
-                                                                    usrdata.labeltype
+            usrdata.df.rename(
+                columns={"Modified sequence": "SequenceModi"}, inplace=True
+            )
+            if "Modifications" in usrdata.df:
+                usrdata.df["SequenceModiCount"] = count_modis_maxquant(
+                    usrdata.df, usrdata.labeltype
                 )
-            elif 'SequenceModi' in usrdata.df: # should be if we get to this point
-                usrdata.df['SequenceModiCount'] = count_modis_seqmodi(usrdata.df,
-                                                                      usrdata.labeltype
+            elif "SequenceModi" in usrdata.df:  # should be if we get to this point
+                usrdata.df["SequenceModiCount"] = count_modis_seqmodi(
+                    usrdata.df, usrdata.labeltype
                 )
-                usrdata.categorical_assign('Modifications', '')
+                # usrdata.categorical_assign("Modifications", "")
+                usrdata.df["Modifications"] = ""
 
-            usrdata.categorical_assign('LabelFLAG', 0) #TODO: handle this properly
+        if usrdata.df.SequenceModi.isna().any():
+            usrdata.df.loc[
+                usrdata.df.SequenceModi.isna(), "SequenceModi"
+            ] = usrdata.df.loc[usrdata.df.SequenceModi.isna(), "Sequence"]
+            # usrdata.df['SequenceModi'] = usrdata.df.apply(lambda x: x['Sequence'] if pd.isna(x['SequenceModi'])
+            #                                               else x['SequenceModi'], 1)
+
+            usrdata.categorical_assign("LabelFLAG", 0)  # TODO: handle this properly
     return protein_column_out
 
+
 def rename_refseq_cols(df, filename):
-    fasta_h = ['TaxonID', 'HomologeneID', 'GeneID', 'ProteinGI', 'FASTA']
+    fasta_h = ["TaxonID", "HomologeneID", "GeneID", "ProteinGI", "FASTA"]
     # regxs = {x: re.compile(x) for x in _fasta_h}
     to_rename = dict()
     for header in fasta_h:
-        matched_col = [col for col in df.columns
-                       if header in col]
+        matched_col = [col for col in df.columns if header in col]
         if len(matched_col) != 1:
-            raise ValueError("""Could not identify the correct
+            raise ValueError(
+                """Could not identify the correct
             column in the reference sequence database for '{}'
-            for file : {}""".format(header, filename))
+            for file : {}""".format(
+                    header, filename
+                )
+            )
         to_rename[matched_col[0]] = header
     df.rename(columns=to_rename, inplace=True)
 
+
 WORKERS = 1
 
-def main(usrdatas=[], fullpeptread=False, inputdir='', outputdir='', refs=dict(),
-         rawfilepath=None, column_aliases=dict(), gid_ignore_file='', labels=dict(),
-         raise_on_error=False, contaminant_label='__CONTAMINANT__', enzyme='trypsin/P',
-         semi_tryptic=False, semi_tryptic_iter=6, min_pept_len=7, workers=1, razor=False,
-         miscuts=2,
-         protein_column=None, protein_columntype=None,
+
+def main(
+    usrdatas=[],
+    fullpeptread=False,
+    inputdir="",
+    outputdir="",
+    refs=dict(),
+    rawfilepath=None,
+    column_aliases=dict(),
+    gid_ignore_file="",
+    labels=dict(),
+    raise_on_error=False,
+    contaminant_label="__CONTAMINANT__",
+    enzyme="trypsin/P",
+    semi_tryptic=False,
+    semi_tryptic_iter=6,
+    min_pept_len=7,
+    workers=1,
+    razor=False,
+    miscuts=2,
+    protein_column=None,
+    protein_columntype=None,
 ):
 
     """
@@ -2750,14 +3364,15 @@ def main(usrdatas=[], fullpeptread=False, inputdir='', outputdir='', refs=dict()
     elif not imagetitle:
         print(program_title)  # not as exciting as ascii art
 
-    print('\nrelease date: {}'.format(__copyright__))
-    print('Python version ' + sys.version)
-    print('Pandas version: ' + pd.__version__)
+    logging.info("release date: {}".format(__copyright__))
+    logging.info("Python version " + sys.version)
+    logging.info("Pandas version: " + pd.__version__)
+    logging.info("=" * 79)
 
     startTime = datetime.now()
 
-    print('\nStart at {}'.format(startTime))
-    # logging.info('Start at {}'.format(startTime))
+    # print("\nStart at {}".format(startTime))
+    logging.info("Start at {}".format(startTime))
 
     # first set the modifications. Importantly fills in X with the predicted amino acid
     protein_column = set_up(usrdatas, column_aliases, enzyme, protein_column)
@@ -2766,19 +3381,28 @@ def main(usrdatas=[], fullpeptread=False, inputdir='', outputdir='', refs=dict()
     if all(usrdata.EXIT_CODE != 0 for usrdata in usrdatas):
         return usrdatas
 
+    # special case where we want to skip matching to database and just use pre-mapped column
     if protein_column is not None:
         databases = dict()
 
         for usrdata in usrdatas:
-            database = map_to_gene(usrdata, protein_column, identifier=protein_columntype)
+            database = map_to_gene(
+                usrdata, protein_column, identifier=protein_columntype
+            )
 
             databases[usrdata.taxonid] = database
 
     else:
 
-        databases = match([x for x in usrdatas if x.EXIT_CODE == 0], refs, enzyme=enzyme, semi_tryptic=semi_tryptic,
-                        semi_tryptic_iter=semi_tryptic_iter, min_pept_len=min_pept_len, miscuts=miscuts)
-
+        databases = match(
+            [x for x in usrdatas if x.EXIT_CODE == 0],
+            refs,
+            enzyme=enzyme,
+            semi_tryptic=semi_tryptic,
+            semi_tryptic_iter=semi_tryptic_iter,
+            min_pept_len=min_pept_len,
+            miscuts=miscuts,
+        )
 
     if all(usrdata.EXIT_CODE != 0 for usrdata in usrdatas):
         return usrdatas
@@ -2788,32 +3412,36 @@ def main(usrdatas=[], fullpeptread=False, inputdir='', outputdir='', refs=dict()
         if usrdata.EXIT_CODE != 0:
             continue
         try:
-            grouper(usrdata,
-                    database=databases[usrdata.taxonid],
-                    gid_ignore_file=gid_ignore_file, labels=labels,
-                    contaminant_label=contaminant_label, razor=razor)
+            grouper(
+                usrdata,
+                database=databases[usrdata.taxonid],
+                gid_ignore_file=gid_ignore_file,
+                labels=labels,
+                contaminant_label=contaminant_label,
+                razor=razor,
+            )
             usrdata.EXIT_CODE = 0
         except Exception as e:  # catch and store all exceptions, won't crash
-                                # the whole program at least
+            # the whole program at least
             usrdata.EXIT_CODE = 1
             usrdata.ERROR = traceback.format_exc()
             stack = traceback.format_exc()
             # failed_exps.append((usrdata, e))
-            usrdata.to_logq('Failure for file of experiment {}.\n'\
-                  'The reason is : {}'.format(repr(usrdata), e))
-            usrdata.to_logq(stack)
-            print(stack)
+            # usrdata.to_logq(
+            #     "Failure for file of experiment {}.\n"
+            #     "The reason is : {}".format(repr(usrdata), e)
+            # )
+            # usrdata.to_logq(stack)
+            logging.error(stack)
             # for s in stack:
             #     usrdata.to_logq(s, sep='')
             #     print(s, sep='')
-            usrdata.flush_log()
-            print('Failure for file of experiment {}.\n'\
-                  'The reason is : {}'.format(repr(usrdata), e))
+            # usrdata.flush_log()
+            logging.error("Failure for file of experiment {}.".format(repr(usrdata)))
+            logging.error("Traceback:\n {}".format(e))
 
-            logging.warn('Failure for file of experiment {}.\n'\
-                         'The reason is : {}'.format(repr(usrdata), e))
             if raise_on_error:
                 raise  # usually don't need to raise, will kill the script. Re-enable
-                       # if need to debug and find where errors are
-    print('Time taken : {}\n'.format(datetime.now() - startTime))
+                # if need to debug and find where errors are
+    logging.info("Time taken : {}\n".format(datetime.now() - startTime))
     return usrdatas

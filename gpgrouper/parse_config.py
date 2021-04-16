@@ -1,6 +1,7 @@
 import os
 
 import six
+
 if six.PY3:
     from configparser import ConfigParser, NoOptionError
 elif six.PY2:
@@ -8,39 +9,45 @@ elif six.PY2:
 from getpass import getuser
 
 
-CONFIG_NAME = 'gpgrouper_config.ini'
+CONFIG_NAME = "gpgrouper_config.ini"
+
 
 class Config(object):
-
     def __init__(self, user):
         self.user = user
         self.ispec_url = None
         self.database = None
-        self.outfile = '-'
+        self.outfile = "-"
         self.filtervalues = dict()
         self.column_aliases = dict()
-        self.CONFIG_DIR = '.'
-        self.inputdir = '.'
-        self.outputdir = '.'
-        self.rawfiledir = '.'
+        self.CONFIG_DIR = "."
+        self.inputdir = "."
+        self.outputdir = "."
+        self.rawfiledir = "."
         self.labels = dict()
         self.refseqs = dict()
         self.fastadb = None
         self.contaminants = None
 
+
 if six.PY3:
-    parser = ConfigParser(comment_prefixes=(';'), allow_no_value=True) # allow number sign to be read in configfile
+    parser = ConfigParser(
+        comment_prefixes=(";"), allow_no_value=True
+    )  # allow number sign to be read in configfile
 elif six.PY2:
-    parser = ConfigParser(allow_no_value=True) # allow number sign to be read in configfile
+    parser = ConfigParser(
+        allow_no_value=True
+    )  # allow number sign to be read in configfile
 parser.optionxform = str
 
 
-def find_configfile(path='.'):
+def find_configfile(path="."):
     target = os.path.join(path, CONFIG_NAME)
     if os.path.isfile(target):
         return os.path.join(target)
     else:
         return None
+
 
 def get_configfile(config, config_file):
     """Get the config file for a given user"""
@@ -52,6 +59,7 @@ def get_configfile(config, config_file):
     parser.read(config_file)
     return parser
 
+
 def parse_configfile(config_file=None, user=None):
     """Parse the configfile and update the variables in a Config object if
     config_file exists"""
@@ -61,16 +69,16 @@ def parse_configfile(config_file=None, user=None):
     if parser is None:
         return config
     try:
-        config.inputdir = parser.get('directories', 'inputdir', fallback='.')
-        config.outputdir = parser.get('directories', 'outputdir', fallback='.')
-        config.rawfiledir = parser.get('directories', 'rawfiledir', fallback='.')
-        config.contaminants = parser.get('directories', 'contaminants', fallback='.')
-    except TypeError: # python2
-        for x in 'inputdir', 'outputdir', 'rawfiledir', 'contaminants':
+        config.inputdir = parser.get("directories", "inputdir", fallback=".")
+        config.outputdir = parser.get("directories", "outputdir", fallback=".")
+        config.rawfiledir = parser.get("directories", "rawfiledir", fallback=".")
+        config.contaminants = parser.get("directories", "contaminants", fallback=".")
+    except TypeError:  # python2
+        for x in "inputdir", "outputdir", "rawfiledir", "contaminants":
             try:
-                setattr(config, x,parser.get('directories', x))
+                setattr(config, x, parser.get("directories", x))
             except NoOptionError:
-                setattr(config, x, '.')
+                setattr(config, x, ".")
 
     # fv_section = parser['filter values']
     # filtervalues = {'ion_score': fv_section.getfloat('ion score'),
@@ -81,31 +89,34 @@ def parse_configfile(config_file=None, user=None):
     #                 'zmax': fv_section.getint('charge_max'),
     #                 'modi': fv_section.getint('max modis'),
     #                 }
-    filtervalues = {'ion_score': parser.getfloat('filter values', 'ion score'),
-                    'qvalue':    parser.getfloat('filter values', 'q value'),
-                    'pep':       parser.getfloat('filter values', 'PEP'),
-                    'idg':       parser.getfloat('filter values', 'IDG'),
-                    'zmin':      parser.getint('filter values', 'charge_min'),
-                    'zmax':      parser.getint('filter values', 'charge_max'),
-                    'modi':      parser.getint('filter values', 'max modis'),
-                    }
+    filtervalues = {
+        "ion_score": parser.getfloat("filter values", "ion score"),
+        "qvalue": parser.getfloat("filter values", "q value"),
+        "pep": parser.getfloat("filter values", "PEP"),
+        "idg": parser.getfloat("filter values", "IDG"),
+        "zmin": parser.getint("filter values", "charge_min"),
+        "zmax": parser.getint("filter values", "charge_max"),
+        "modi": parser.getint("filter values", "max modis"),
+    }
     config.filtervalues = filtervalues
 
     column_aliases = dict()
     # for column in parser['column names']:
-    for column, _ in parser.items('column names'):
-        column_aliases[column] = [x.strip() for x in
-                                  parser.get('column names', column).splitlines() if x]
+    for column, _ in parser.items("column names"):
+        column_aliases[column] = [
+            x.strip() for x in parser.get("column names", column).splitlines() if x
+        ]
     config.column_aliases = column_aliases
 
     refseqs = dict()
-    for taxon, location in parser.items('refseq locations'):
+    for taxon, location in parser.items("refseq locations"):
         refseqs[int(taxon)] = location
     config.refseqs = refseqs
 
     labels = dict()
-    for label, _ in parser.items('labels'):
-        labels[label] = [x.strip() for x in
-                         parser.get('labels', label).splitlines() if x]
+    for label, _ in parser.items("labels"):
+        labels[label] = [
+            x.strip() for x in parser.get("labels", label).splitlines() if x
+        ]
     config.labels = labels
     return config
