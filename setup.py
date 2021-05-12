@@ -1,7 +1,7 @@
 import os
 from setuptools import setup, find_packages
 def calculate_version(inputfile):
-    version_list =  [x.split('\'')[1] for x in open(inputfile, 'r')
+    version_list =  [x.split('\"')[1] for x in open(inputfile, 'r')
                      if x.startswith('__version__')]
     if version_list:
         return version_list[0]
