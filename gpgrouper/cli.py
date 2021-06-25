@@ -160,6 +160,7 @@ DEFAULTS = {
             "lysc",
             # "LysN",
             "arg-c" "asp-n" "cnbr",
+            "noenzyme",
             # "GluC",
             # "ArgC" "AspN",
         ]
