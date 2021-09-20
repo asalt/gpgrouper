@@ -667,7 +667,7 @@ def spectra_summary(usrdata, psm_data):
     msfdata = pd.DataFrame()
     # msfdata['RawFileName']    = list(set(usrdata.df.SpectrumFile.tolist()))
     # msfdata['RawFileName']    = sorted(usrdata.df.SpectrumFile.unique())
-    msfdata["RawFileName"] = sorted(psm_data.SpectrumFile.unique())
+    msfdata["RawFileName"] = sorted(psm_data.SpectrumFile.fillna('').unique())
     msfdata["EXPRecNo"] = usrdata.recno
     msfdata["EXPRunNo"] = usrdata.runno
     msfdata["EXPSearchNo"] = usrdata.searchno
@@ -991,13 +991,13 @@ def assign_IDG(df, filtervalues=None):
     filtervalues = filtervalues or dict()
     ion_score_bins = filtervalues.get("ion_score_bins", (10, 20, 30))
     df["PSM_IDG"] = pd.cut(
-        df["IonScore"],
+        df["IonScore"].fillna(0),
         # bins=(0, *ion_score_bins, np.inf),
         bins=(-np.inf,) + tuple(ion_score_bins) + (np.inf,),
         labels=[7, 5, 3, 1],
         include_lowest=True,
         right=False,
-    ).astype("int")
+    ).astype("int").fillna(7)
     df.loc[df["q_value"] > 0.01, "PSM_IDG"] += 1
     df.loc[(df["IonScore"].isna() | df["q_value"].isna()), "PSM_IDG"] = 9
     return df
