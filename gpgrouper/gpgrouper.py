@@ -1,5 +1,6 @@
 # PyGrouper - Alex Saltzman
 from __future__ import print_function
+import tqdm
 
 import re, os, sys, time
 import itertools
@@ -1386,6 +1387,10 @@ def get_gene_info(genes_df, database, col="GeneID"):
 
 def get_peptides_for_gene(genes_df, temp_df):
 
+    # this is often an area where errors manifest
+    # import ipdb
+
+    # ipdb.set_trace()
     full = (
         temp_df.groupby("GeneID")["sequence_lower"].agg(
             (lambda x: frozenset(x), "nunique")
@@ -2208,6 +2213,7 @@ def grouper(
     razor=False,
 ):
     """Function to group a psm file from PD after Mascot Search"""
+    import ipdb
 
     def print_log_msg(df_or_None=None, msg="", *args, **kwargs):
         """Print and log a message.
@@ -2501,7 +2507,7 @@ def grouper(
         # taxon_ids = usrdata.df['TaxonID'].replace(['0', 0, 'NaN', 'nan', 'NAN'], np.nan).dropna().unique()
         taxon_ids = (
             dfm["TaxonID"]
-            .replace(["0", 0, "NaN", "nan", "NAN"], np.nan)
+            .replace(["0", 0, "NaN", "nan", "NAN", -1, "-1", ""], np.nan)
             .dropna()
             .unique()
         )
@@ -2947,13 +2953,13 @@ def grouper(
     return
 
 
-def calculate_breakup_size(row_number, enzyme='trypsin'):
+def calculate_breakup_size(row_number, enzyme="trypsin"):
     # print(32)
     # print(ceil(row_number/32))
     # return ceil(row_number/32)
-    if enzyme == 'noenzyme':
-        return ceil(row_number/30)
-    return ceil(row_number)
+    if enzyme == "noenzyme":
+        return ceil(row_number / 140)
+    return ceil(row_number/4)
 
 
 def set_modifications(usrdata):
@@ -3038,7 +3044,7 @@ ENZYME = {
     "LysC": dict(cutsites=("K",), exceptions=None),
     "GluC": dict(cutsites=("E",), exceptions=None),
     "ArgC": dict(cutsites=("R",), exceptions=None),
-    "noenzyme": dict(cutsites=())
+    "noenzyme": dict(cutsites=()),
 }
 # TODO: add the rest
 # 'LysN', 'ArgC'
@@ -3055,10 +3061,10 @@ def _match(
 ):
 
     # expand later
-    enzyme_rule = parser.expasy_rules.get(enzyme, 'noenzyme')
-    if enzyme == 'noenzyme':
-        enzyme_rule = '.'
-        miscuts = 99
+    enzyme_rule = parser.expasy_rules.get(enzyme, "noenzyme")
+    if enzyme == "noenzyme":
+        enzyme_rule = "."
+        miscuts = 50
     print("Using peptidome {} with rule {}".format(refseq_file, enzyme))
 
     # database = pd.read_table(refseq_file, dtype=str)
@@ -3066,9 +3072,10 @@ def _match(
     database = load_fasta(refseq_file)
     database["capacity"] = np.nan
     breakup_size = calculate_breakup_size(len(database), enzyme=enzyme)
-    print(breakup_size)
+    print(f"breakup size {breakup_size}")
     counter = 0
     prot = defaultdict(list)
+    #for ix, row in tqdm.tqdm(database.iterrows(), total=len(database)):
     for ix, row in database.iterrows():
         counter += 1
         fragments, fraglen = protease(
@@ -3078,7 +3085,7 @@ def _match(
             # exceptions=['P'],
             rule=enzyme_rule,
             miscuts=miscuts,
-            #semi = False if enzyme_rule != 'noenzyme' else True,
+            # semi = False if enzyme_rule != 'noenzyme' else True,
             semi_tryptic=semi_tryptic,  # not functional
             semi_tryptic_iter=semi_tryptic_iter,
             # **enzyme_rule,
@@ -3134,7 +3141,7 @@ def match(
         group = list(g)
         taxonid = group[0].taxonid
         miscuts = group[0].miscuts
-        refseq = refseqs.get(taxonid, refseqs.get(''))
+        refseq = refseqs.get(taxonid, refseqs.get(""))
 
         if refseq is None:
             err = "No refseq file available for {}".format(taxonid)

@@ -80,17 +80,20 @@ def rolling_window(seq, length_of_window):
 from pyteomics import parser
 
 
-def protease(seq, miscuts=2, rule="[KR]", semi=False, **kwargs):
-    nomiscuts = parser.cleave(seq, rule=rule, semi=semi, missed_cleavages=0)
-    all_seqs = parser.cleave(seq, rule=rule, semi=semi, missed_cleavages=miscuts)
+def protease(seq, miscuts=2, rule="[KR]", min_pept_len=7, semi=False, **kwargs):
+    nomiscuts = parser.cleave(
+        seq, rule=rule, semi=semi, missed_cleavages=0, min_length=min_pept_len
+    )
+    all_seqs = parser.cleave(
+        seq, rule=rule, semi=semi, missed_cleavages=miscuts, min_length=min_pept_len
+    )
 
     # without M
     nomiscuts_without_m = parser.cleave(
-        seq[1:], rule=rule, missed_cleavages=0, min_length=7, semi=semi
-
+        seq[1:], rule=rule, missed_cleavages=0, min_length=min_pept_len, semi=semi
     )
     all_seqs_without_m = parser.cleave(
-        seq[1:], rule=rule, missed_cleavages=miscuts, min_length=7, semi=semi
+        seq[1:], rule=rule, missed_cleavages=miscuts, min_length=min_pept_len, semi=semi
     )
 
     nomiscuts = nomiscuts | nomiscuts_without_m
