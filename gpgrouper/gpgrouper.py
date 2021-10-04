@@ -668,7 +668,7 @@ def spectra_summary(usrdata, psm_data):
     msfdata = pd.DataFrame()
     # msfdata['RawFileName']    = list(set(usrdata.df.SpectrumFile.tolist()))
     # msfdata['RawFileName']    = sorted(usrdata.df.SpectrumFile.unique())
-    msfdata["RawFileName"] = sorted(psm_data.SpectrumFile.unique())
+    msfdata["RawFileName"] = sorted(psm_data.SpectrumFile.fillna('').unique())
     msfdata["EXPRecNo"] = usrdata.recno
     msfdata["EXPRunNo"] = usrdata.runno
     msfdata["EXPSearchNo"] = usrdata.searchno
@@ -998,13 +998,13 @@ def assign_IDG(df, filtervalues=None):
     filtervalues = filtervalues or dict()
     ion_score_bins = filtervalues.get("ion_score_bins", (10, 20, 30))
     df["PSM_IDG"] = pd.cut(
-        df["IonScore"],
+        df["IonScore"].fillna(0),
         # bins=(0, *ion_score_bins, np.inf),
         bins=(-np.inf,) + tuple(ion_score_bins) + (np.inf,),
         labels=[7, 5, 3, 1],
         include_lowest=True,
         right=False,
-    ).astype("int")
+    ).astype("int").fillna(7)
     df.loc[df["q_value"] > 0.01, "PSM_IDG"] += 1
     df.loc[(df["IonScore"].isna() | df["q_value"].isna()), "PSM_IDG"] = 9
     return df
@@ -2888,10 +2888,12 @@ def grouper(
     return
 
 
-def calculate_breakup_size(row_number):
+def calculate_breakup_size(row_number, enzyme='trypsin'):
     # print(32)
     # print(ceil(row_number/32))
     # return ceil(row_number/32)
+    if enzyme == 'noenzyme':
+        return ceil(row_number/30)
     return ceil(row_number)
 
 
@@ -2977,6 +2979,7 @@ ENZYME = {
     "LysC": dict(cutsites=("K",), exceptions=None),
     "GluC": dict(cutsites=("E",), exceptions=None),
     "ArgC": dict(cutsites=("R",), exceptions=None),
+    "noenzyme": dict(cutsites=())
 }
 # TODO: add the rest
 # 'LysN', 'ArgC'
@@ -2993,14 +2996,18 @@ def _match(
 ):
 
     # expand later
-    enzyme_rule = parser.expasy_rules[enzyme]
+    enzyme_rule = parser.expasy_rules.get(enzyme, 'noenzyme')
+    if enzyme == 'noenzyme':
+        enzyme_rule = '.'
+        miscuts = 99
     print("Using peptidome {} with rule {}".format(refseq_file, enzyme))
 
     # database = pd.read_table(refseq_file, dtype=str)
     # rename_refseq_cols(database, refseq_file)
     database = load_fasta(refseq_file)
     database["capacity"] = np.nan
-    breakup_size = calculate_breakup_size(len(database))
+    breakup_size = calculate_breakup_size(len(database), enzyme=enzyme)
+    print(breakup_size)
     counter = 0
     prot = defaultdict(list)
     for ix, row in database.iterrows():
@@ -3012,6 +3019,7 @@ def _match(
             # exceptions=['P'],
             rule=enzyme_rule,
             miscuts=miscuts,
+            #semi = False if enzyme_rule != 'noenzyme' else True,
             semi_tryptic=semi_tryptic,  # not functional
             semi_tryptic_iter=semi_tryptic_iter,
             # **enzyme_rule,
@@ -3067,7 +3075,7 @@ def match(
         group = list(g)
         taxonid = group[0].taxonid
         miscuts = group[0].miscuts
-        refseq = refseqs.get(taxonid)
+        refseq = refseqs.get(taxonid, refseqs.get(''))
 
         if refseq is None:
             err = "No refseq file available for {}".format(taxonid)
