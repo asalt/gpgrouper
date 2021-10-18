@@ -668,7 +668,7 @@ def spectra_summary(usrdata, psm_data):
     msfdata = pd.DataFrame()
     # msfdata['RawFileName']    = list(set(usrdata.df.SpectrumFile.tolist()))
     # msfdata['RawFileName']    = sorted(usrdata.df.SpectrumFile.unique())
-    msfdata["RawFileName"] = sorted(psm_data.SpectrumFile.fillna('').unique())
+    msfdata["RawFileName"] = sorted(psm_data.SpectrumFile.fillna("").unique())
     msfdata["EXPRecNo"] = usrdata.recno
     msfdata["EXPRunNo"] = usrdata.runno
     msfdata["EXPSearchNo"] = usrdata.searchno
@@ -991,14 +991,18 @@ def gene_protref_mapper(df):
 def assign_IDG(df, filtervalues=None):
     filtervalues = filtervalues or dict()
     ion_score_bins = filtervalues.get("ion_score_bins", (10, 20, 30))
-    df["PSM_IDG"] = pd.cut(
-        df["IonScore"].fillna(0),
-        # bins=(0, *ion_score_bins, np.inf),
-        bins=(-np.inf,) + tuple(ion_score_bins) + (np.inf,),
-        labels=[7, 5, 3, 1],
-        include_lowest=True,
-        right=False,
-    ).astype("int").fillna(7)
+    df["PSM_IDG"] = (
+        pd.cut(
+            df["IonScore"].fillna(0),
+            # bins=(0, *ion_score_bins, np.inf),
+            bins=(-np.inf,) + tuple(ion_score_bins) + (np.inf,),
+            labels=[7, 5, 3, 1],
+            include_lowest=True,
+            right=False,
+        )
+        .astype("int")
+        .fillna(7)
+    )
     df.loc[df["q_value"] > 0.01, "PSM_IDG"] += 1
     df.loc[(df["IonScore"].isna() | df["q_value"].isna()), "PSM_IDG"] = 9
     return df
@@ -1388,9 +1392,9 @@ def get_gene_info(genes_df, database, col="GeneID"):
 def get_peptides_for_gene(genes_df, temp_df):
 
     # this is often an area where errors manifest
-    # import ipdb
+    if len(temp_df) == 0:
+        raise ValueError("input psms data frame is empty")
 
-    # ipdb.set_trace()
     full = (
         temp_df.groupby("GeneID")["sequence_lower"].agg(
             (lambda x: frozenset(x), "nunique")
@@ -2679,45 +2683,7 @@ def grouper(
         # write_md5(genedata_out_chksum, md5sum(os.path.join(usrdata.outdir, genedata_out)))
         del genes_df
 
-        # usrdata.to_logq(
-        #     "{} | Export of genetable for labeltype {} completed.".format(
-        #         time.ctime(), label
-        #     )
-        # )
         logging.info(f"Export of genetable for labeltype {label} completed.".format())
-
-        # <<<<<<< HEAD
-        # usrdata.to_logq('{} | Starting peptide ranking.'.format(time.ctime()))
-        # data_cols = DATA_ID_COLS + DATA_QUANT_COLS
-        # if usrdata.labeltype in ('TMT', 'iTRAQ'):
-        #     if usrdata.labeltype == 'TMT':
-        #         data_cols = data_cols + ['TMT_126', 'TMT_127_N', 'TMT_127_C', 'TMT_128_N',
-        #                                 'TMT_128_C', 'TMT_129_N', 'TMT_129_C', 'TMT_130_N',
-        #                                 'TMT_130_C', 'TMT_131', 'QuanInfo', 'QuanUsage']
-        #     elif usrdata.labeltype == 'iTRAQ':
-        #         data_cols = data_cols + ['iTRAQ_114', 'iTRAQ_115', 'iTRAQ_116', 'iTRAQ_117',
-        #                                 'QuanInfo', 'QuanUsage']
-        #     if razor:
-        #         data_cols.append('RazorArea')
-        # # ========================================================================= #
-        # usrdata.df.drop('metadatainfo', axis=1, inplace=True)  # Don't need this
-        #                                                    # column anymore.
-        # =======
-        #         usrdata.to_logq('{} | Starting peptide ranking.'.format(time.ctime()))
-        #         if usrdata.labeltype in ('TMT', 'iTRAQ'):
-        #             if usrdata.labeltype == 'TMT':
-        #                 data_cols = DATA_COLS + ['TMT_126', 'TMT_127_N', 'TMT_127_C', 'TMT_128_N',
-        #                                         'TMT_128_C', 'TMT_129_N', 'TMT_129_C', 'TMT_130_N',
-        #                                          'TMT_130_C', 'TMT_131_N', 'TMT_131_C', 'QuanInfo', 'QuanUsage']
-        #             elif usrdata.labeltype == 'iTRAQ':
-        #                 data_cols = DATA_COLS + ['iTRAQ_114', 'iTRAQ_115', 'iTRAQ_116', 'iTRAQ_117',
-        #                                         'QuanInfo', 'QuanUsage']
-        #             if razor:
-        #                 data_cols.append('RazorArea')
-        #         # ========================================================================= #
-        #         usrdata.df.drop('metadatainfo', axis=1, inplace=True)  # Don't need this
-        #                                                            # column anymore.
-        # >>>>>>> 7917bf8f89c5ef5c6c9af1609aad844b66bf7b6c
 
         # if len(usrdata.df) == 0:
         #     print('No protein information for {}.\n'.format(repr(usrdata)))
@@ -2796,54 +2762,16 @@ def grouper(
         # didn't get a rank gets a rank of 0
         msg = "Peptide ranking complete for {}.".format(usrdata.datafile)
         logging.info(msg)
-        # print_log_msg(msg=msg)
-
-        # <<<<<<< HEAD
-        # data_cols = DATA_COLS
-        # if usrdata.labeltype in ('TMT', 'iTRAQ'):
-        #     if usrdata.labeltype == 'TMT':
-        #         data_cols = DATA_COLS + ['TMT_126', 'TMT_127_N', 'TMT_127_C', 'TMT_128_N',
-        #                                 'TMT_128_C', 'TMT_129_N', 'TMT_129_C', 'TMT_130_N',
-        #                                 'TMT_130_C', 'TMT_131', 'QuanInfo', 'QuanUsage']
-        #     elif usrdata.labeltype == 'iTRAQ':
-        #         data_cols = DATA_COLS + ['iTRAQ_114', 'iTRAQ_115', 'iTRAQ_116', 'iTRAQ_117',
-        #                                 'QuanInfo', 'QuanUsage']
-        #     if razor and 'RazorArea' not in data_cols:
-        #         data_cols.append('RazorArea')
-        # if not all(x in usrdata.df.columns.values for x in set(data_cols) - set(_EXTRA_COLS)):
-        #     print('Potential error, not all columns filled.')
-        #     print([x for x in data_cols if x not in usrdata.df.columns.values])
-        # =======
-        #         data_cols = DATA_COLS
-        #         if usrdata.labeltype in ('TMT', 'iTRAQ'):
-        #             if usrdata.labeltype == 'TMT':
-        #                 data_cols = DATA_COLS + ['TMT_126', 'TMT_127_N', 'TMT_127_C', 'TMT_128_N',
-        #                                         'TMT_128_C', 'TMT_129_N', 'TMT_129_C', 'TMT_130_N',
-        #                                          'TMT_130_C', 'TMT_131_N', 'TMT_131_C', 'QuanInfo', 'QuanUsage']
-        #             elif usrdata.labeltype == 'iTRAQ':
-        #                 data_cols = DATA_COLS + ['iTRAQ_114', 'iTRAQ_115', 'iTRAQ_116', 'iTRAQ_117',
-        #                                         'QuanInfo', 'QuanUsage']
-        #             if razor and 'RazorArea' not in data_cols:
-        #                 data_cols.append('RazorArea')
-        #         if not all(x in usrdata.df.columns.values for x in set(data_cols) - set(_EXTRA_COLS)):
-        #             print('Potential error, not all columns filled.')
-        #             print([x for x in data_cols if x not in usrdata.df.columns.values])
-        # >>>>>>> 7917bf8f89c5ef5c6c9af1609aad844b66bf7b6c
 
         _outf = os.path.join(
             usrdata.outdir,
-            usrdata.output_name(regularize_filename(label) + "_psms", ext="tsv"),
+            usrdata.output_name(
+                suffix=regularize_filename(label) + "_psms_QUANT", ext="tsv"
+            ),
         )
-        # out = os.path.join(usrdata.outdir, usrdata.output_name('psms', ext='tab'))
 
         Q_COLS = [x for x in DATA_QUANT_COLS if x in dfm]
         not_Q_COLS = [x for x in DATA_QUANT_COLS if x not in dfm]
-        # if not_Q_COLS:
-        #     logging.info(
-        #         "Potential error, some quant cols missing: {}".format(
-        #             ", ".join(not_Q_COLS)
-        #         )
-        #     )
 
         dfm.to_csv(_outf, index=False, encoding="utf-8", sep="\t", columns=Q_COLS)
         usrdata.psm_files.append(_outf)
@@ -2899,7 +2827,7 @@ def grouper(
         _df = pd.concat(
             [pd.read_table(x) for x in usrdata.psm_files if "QUAL" not in x]
         )
-        _outf = os.path.join(usrdata.outdir, usrdata.output_name(suffix="psm_QUANT"))
+        _outf = os.path.join(usrdata.outdir, usrdata.output_name(suffix="psms_QUANT"))
         _overlapping_cols = [x for x in data_cols if x in _df]
         _df.to_csv(_outf, index=False, columns=_overlapping_cols, sep="\t")
         logging.info(f"Wrote {_outf}")
@@ -2959,7 +2887,7 @@ def calculate_breakup_size(row_number, enzyme="trypsin"):
     # return ceil(row_number/32)
     if enzyme == "noenzyme":
         return ceil(row_number / 140)
-    return ceil(row_number/4)
+    return ceil(row_number / 4)
 
 
 def set_modifications(usrdata):
@@ -2974,6 +2902,12 @@ def set_modifications(usrdata):
         "Label:13C(6)": "lab",
         "Label:13C(6)+GlyGly": "labgg",
         "\)\(": ":",
+        "79.9663": "pho",
+        "229.1629": "TMT6",
+        "304.207": "TMT16",
+        "57.0215": "car",
+        "15.9949": "oxi",
+        # "": "",
     }
     modis_abbrev = usrdata.Modifications.fillna("").replace(regex=to_replace).fillna("")
     modis_abbrev.name = "Modifications_abbrev"
@@ -3075,7 +3009,7 @@ def _match(
     print(f"breakup size {breakup_size}")
     counter = 0
     prot = defaultdict(list)
-    #for ix, row in tqdm.tqdm(database.iterrows(), total=len(database)):
+    # for ix, row in tqdm.tqdm(database.iterrows(), total=len(database)):
     for ix, row in database.iterrows():
         counter += 1
         fragments, fraglen = protease(
