@@ -12,6 +12,7 @@ from functools import partial
 from math import ceil
 from warnings import warn
 import warnings
+import ipdb
 import six
 
 if six.PY3:
@@ -58,7 +59,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 logfilename = program_title.replace(" ", "_") + ".log"
 logging.basicConfig(
-    format=("[{levelname}] {message}"),
+    format=("[{levelname}] {asctime}s {message}s {message}"),
     level=logging.INFO,
     style="{",
     # level=verbosity_dict[config.verbosity],
@@ -676,6 +677,12 @@ def spectra_summary(usrdata, psm_data):
     msfdata["CreationTS"] = datetime.now().strftime("%m/%d/%Y %H:%M:%S")
     msfdata["ModificationTS"] = datetime.now().strftime("%m/%d/%Y %H:%M:%S")
 
+    if len(psm_data.SpectrumFile.unique()) > 300:
+        warn(
+            f"{psm_data.SpectrumFile.unique()} spectrum files found, too many for calculation. Skipping"
+        )
+        return msfdata
+
     summary_info = msfdata.apply(
         lambda x: _spectra_summary(
             x["RawFileName"],
@@ -1251,7 +1258,7 @@ def flag_AUC_PSM(
     # similarly acetyl modifications are designated via: XXK(ace)
     if phospho:
         df.loc[
-            ~df["SequenceModi"].str.contains("pho", case=True),
+            ~df["SequenceModi"].str.contains("pho|79.966", case=True),
             ["AUC_UseFLAG", "PSM_UseFLAG"],
         ] = (0, 0)
     elif acetyl:
@@ -1296,6 +1303,7 @@ def multi_taxon_splitter(taxon_ids, usrdata, gid_ignore_list, area_col):
 
     tot_unique = sum(taxon_totals.values())  # sum of all unique
     # now compute ratio:
+
     for taxon in taxon_ids:
         taxon = str(taxon)
         try:
@@ -1888,6 +1896,7 @@ def set_gene_gpgroups(genes_df, temp_df):
 
 
 def get_labels(usrdata, labels, labeltype="none"):
+    # TODO simplify
     '""labels is a dictionary of lists for each label type""'
     if labeltype == "none":  # label free
         return ["none"]
@@ -1971,6 +1980,10 @@ def split_multiplexed(usrdata, labeltypes, exp_labeltype="none"):
             | (
                 df.SequenceModi.str.startswith("C")
                 & (df.SequenceModi.str.contains("361.228|286.18"))
+            )
+            | (
+                df.SequenceModi.str.startswith("K")
+                & (df.SequenceModi.str.contains("608.414|458"))
             )
         ].copy()
         # we add this to take care fo cystines at the n terminus with carbamidomethylation and TMT10/Pro
@@ -2279,6 +2292,8 @@ def grouper(
 
     labeltypes = get_labels(usrdata.df, labels, usrdata.labeltype)
 
+    if len(labeltypes) == 0:
+        raise ValueError(f"No labels found indata for dtype {usrdata.labeltype}")
     psm_data = split_multiplexed(usrdata, labeltypes, exp_labeltype=usrdata.labeltype)
     # dictionary of labels : dataframe of data
 
@@ -2306,6 +2321,7 @@ def grouper(
     )
 
     # genes_df = (create_df(temp_df, label)
+    # import ipdb; ipdb.set_trace()
     good_qual_data = (
         qual_data.assign(PrecursorArea_split=lambda x: x["PrecursorArea"])
         .pipe(sum_area)  # we have to calculate this here, but will recalculate
@@ -2327,6 +2343,7 @@ def grouper(
         .pipe(select_good_peptides)
         .pipe(assign_labels_for_qual, usrdata.labeltype, labeltypes)
     )
+    logging.info(f"Good qual data : {len(good_qual_data)}")
 
     psms_qual_f = os.path.join(
         usrdata.outdir, usrdata.output_name("psms_QUAL", ext="tsv")
@@ -2353,6 +2370,7 @@ def grouper(
     )
     logging.info(f"Wrote {psms_qual_f}")
 
+    # import ipdb; ipdb.set_trace()
     qual_genes = (
         create_df(good_qual_data)
         # .assign(TaxonID = lambda x : x['GeneID'].map(gene_taxon_dict))
@@ -2440,6 +2458,7 @@ def grouper(
 
     gene_level_label_dict = dict()
     # data_cols = DATA_COLS
+    # import ipdb; ipdb.set_trace()
     for label, df in psm_data.items():
         # label = flaglabel.get(labelix, 'none')
         # df = pd.read_table(psmfile, dtype=dtypes)
@@ -2511,7 +2530,11 @@ def grouper(
         # taxon_ids = usrdata.df['TaxonID'].replace(['0', 0, 'NaN', 'nan', 'NAN'], np.nan).dropna().unique()
         taxon_ids = (
             dfm["TaxonID"]
+<<<<<<< HEAD
             .replace(["0", 0, "NaN", "nan", "NAN", -1, "-1", ""], np.nan)
+=======
+            .replace(["0", 0, "NaN", "nan", "NAN", ""], np.nan)
+>>>>>>> 30bdc1de6f7b4029a579e92cfdf74eac59e3a453
             .dropna()
             .unique()
         )
@@ -2677,6 +2700,7 @@ def grouper(
         )
         usrdata.e2g_files.append(_outf)
 
+<<<<<<< HEAD
         # genedata_chksum = os.path.join(usrdata.outdir, usrdata.output_name('e2g', ext='md5'))
         # write_md5(genedata_chksum, md5sum(os.path.join(usrdata.outdir, genedata_out)))
 
@@ -2693,36 +2717,14 @@ def grouper(
 
         # usrdata.df['HIDs'] = ''  # will be populated later
         # usrdata.df['HIDCount'] = ''  # will be populated later
+=======
+        logging.info(f"Export of genetable for labeltype {label} completed.")
+>>>>>>> 30bdc1de6f7b4029a579e92cfdf74eac59e3a453
 
         logging.info("Starting peptide ranking.")
         # dstr_area = 'PrecursorArea_dstrAdj'
         # area_col_to_use = dstr_area if dstr_area in usrdata.df.columns else orig_area_col
         area_col_to_use = "PrecursorArea_dstrAdj"
-
-        # rank_df = pd.DataFrame()
-        # if 'LabelFLAG' not in isobar_output:
-        #     isobar_output['LabelFLAG'] = np.nan
-        #     isobar_output['PeptRank'] = 0
-        # for label in isobar_output.LabelFLAG.dropna().unique():
-        #     q = 'LabelFLAG == @label'
-        #     isobar_rank = rank_peptides(isobar_output.query(q),
-        #                                 area_col=area_col_to_use,
-        #                                 ranks_only=True)
-        #     rank_df = pd.concat([rank_df, isobar_rank.to_frame()])
-        # now = datetime.now().strftime("%m/%d/%Y %H:%M:%S")
-
-        # isobar_output = (isobar_output.join(rank_df, how='left')
-        #                  .assign(PeptRank = lambda x: (x['PeptRank']
-        #                                                    .fillna(0)
-        #                                                    .astype(np.integer)),
-        #                          ModificationTS = now,
-        #                          HIDs = '',  # will be populated later
-        #                          HIDCount = ''  # will be populated later
-        #               )
-        # )
-        # else:
-        # import psutil; print('\n', psutil.virtual_memory())
-        # process = psutil.Process( os.getpid() )
 
         newcols = list(set(temp_df.columns) - set(dfm.columns))
         dfm = dfm.join(temp_df[newcols])
@@ -2812,9 +2814,9 @@ def grouper(
         #      datatype="e2g",
         #  )
 
-        _df = pd.concat(
-            [pd.read_table(x) for x in usrdata.e2g_files if "QUAL" not in x]
-        )
+        _files = [x for x in usrdata.e2g_files if "QUAL" not in x]
+        # if not _files: continue
+        _df = pd.concat([pd.read_table(f) for f in _files])
         _outf = os.path.join(usrdata.outdir, usrdata.output_name(suffix="e2g_QUANT"))
         _overlapping_cols = [x for x in GENE_QUANT_COLS if x in _df]
         _df.to_csv(_outf, columns=_overlapping_cols, index=False, sep="\t")
@@ -2870,11 +2872,11 @@ def grouper(
     label_taxonratios = pd.DataFrame(label_taxon)
     label_taxonratios.to_csv(out, index=True, encoding="utf-8", sep="\t")
 
-    usrdata.to_logq(
-        "{} | Export of datatable completed.".format(time.ctime())
-        + "\nSuccessful grouping of file completed."
-    )
-    usrdata.flush_log()
+    # usrdata.to_logq(
+    #     "{} | Export of datatable completed.".format(time.ctime())
+    #     + "\nSuccessful grouping of file completed."
+    # )
+    # usrdata.flush_log()
 
     print("Successful grouping of {} completed.\n".format(repr(usrdata)))
 
@@ -3145,6 +3147,8 @@ def check_required_headers(df):
 def set_up(usrdatas, column_aliases, enzyme="trypsin/P", protein_column=None):
     """Set up the usrdata class for analysis
     Read data, rename columns (if appropriate), populate base data"""
+    if not usrdatas:
+        return
     for usrdata in usrdatas:
         EXIT_CODE = usrdata.read_csv(
             sep="\t",
@@ -3152,6 +3156,7 @@ def set_up(usrdatas, column_aliases, enzyme="trypsin/P", protein_column=None):
         if EXIT_CODE != 0:
             logging.error("Error with reading {!r}".format(usrdata))
             continue
+
         if column_aliases:
             standard_name_mapper = column_identifier(usrdata.df, column_aliases)
             protected_names = ["Modified sequence", "SequenceModi"]
@@ -3196,6 +3201,8 @@ def set_up(usrdatas, column_aliases, enzyme="trypsin/P", protein_column=None):
         if not "q_value" in usrdata.df.columns:
             logging.warning("No q_value available")
             usrdata.df["q_value"] = 0
+        if "PrecursorArea" not in usrdata.df:
+            usrdata.df["PrecursorArea"] = 1
             # try:
             #     usrdata.df["q_value"] = usrdata.df["PEP"] / 10  # rough approximation
             # except KeyError:
