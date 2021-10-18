@@ -2530,11 +2530,7 @@ def grouper(
         # taxon_ids = usrdata.df['TaxonID'].replace(['0', 0, 'NaN', 'nan', 'NAN'], np.nan).dropna().unique()
         taxon_ids = (
             dfm["TaxonID"]
-<<<<<<< HEAD
             .replace(["0", 0, "NaN", "nan", "NAN", -1, "-1", ""], np.nan)
-=======
-            .replace(["0", 0, "NaN", "nan", "NAN", ""], np.nan)
->>>>>>> 30bdc1de6f7b4029a579e92cfdf74eac59e3a453
             .dropna()
             .unique()
         )
@@ -2700,7 +2696,6 @@ def grouper(
         )
         usrdata.e2g_files.append(_outf)
 
-<<<<<<< HEAD
         # genedata_chksum = os.path.join(usrdata.outdir, usrdata.output_name('e2g', ext='md5'))
         # write_md5(genedata_chksum, md5sum(os.path.join(usrdata.outdir, genedata_out)))
 
@@ -2717,9 +2712,6 @@ def grouper(
 
         # usrdata.df['HIDs'] = ''  # will be populated later
         # usrdata.df['HIDCount'] = ''  # will be populated later
-=======
-        logging.info(f"Export of genetable for labeltype {label} completed.")
->>>>>>> 30bdc1de6f7b4029a579e92cfdf74eac59e3a453
 
         logging.info("Starting peptide ranking.")
         # dstr_area = 'PrecursorArea_dstrAdj'
