@@ -12,7 +12,6 @@ from functools import partial
 from math import ceil
 from warnings import warn
 import warnings
-import ipdb
 import six
 
 if six.PY3:
@@ -1968,15 +1967,20 @@ def split_multiplexed(usrdata, labeltypes, exp_labeltype="none"):
     output = dict()
 
     # TMTPro
-    query = "{}|229|304.207|608.414".format(exp_labeltype.lower())
+    query = "{}|229|304.207|608.414".format(exp_labeltype.lower()) #exp_labeltype is a string like "TMT" or "none"
     df["LabelFLAG"] = np.nan
     # assign labeltype
-    df.loc[~df["SequenceModi"].str.contains(query), "LabelFLAG"] = 0
+    _how_many_seqmodis_are_modified = df.loc[df["SequenceModi"].str.contains(query)].pipe(len)
+    if _how_many_seqmodis_are_modified == 0 and exp_labeltype == "TMT":
+        warn("No TMT modifications detected, will assume all are statically modified")
+        #df.loc[~df["SequenceModi"].str.contains(query), "LabelFLAG"] = 0
+    else:
+        df.loc[~df["SequenceModi"].str.contains(query), "LabelFLAG"] = 0
 
     for label in labeltypes:
 
         with_reporter = df[
-            (df["SequenceModi"].str.contains(query, case=False))
+            (df["SequenceModi"].str.contains(query, case=True))
             | (
                 df.SequenceModi.str.startswith("C")
                 & (df.SequenceModi.str.contains("361.228|286.18"))
@@ -1986,6 +1990,10 @@ def split_multiplexed(usrdata, labeltypes, exp_labeltype="none"):
                 & (df.SequenceModi.str.contains("608.414|458"))
             )
         ].copy()
+
+        if usrdata.labeltype == 'TMT' and len(with_reporter) == 0:
+            warn("No TMT modifications detected, will assume all are statically modified")
+            with_reporter = df.copy()
         # we add this to take care fo cystines at the n terminus with carbamidomethylation and TMT10/Pro
         reporter_area = (
             with_reporter["PrecursorArea"]
@@ -2225,12 +2233,13 @@ def grouper(
     outdir="",
     database=None,
     gid_ignore_file="",
-    labels=dict(),
+    labels=None,
     contaminant_label="__CONTAMINANT__",
     razor=False,
 ):
+    if labels is None:
+        labels = dict()
     """Function to group a psm file from PD after Mascot Search"""
-    import ipdb
 
     def print_log_msg(df_or_None=None, msg="", *args, **kwargs):
         """Print and log a message.
