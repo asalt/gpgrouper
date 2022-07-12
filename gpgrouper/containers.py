@@ -42,6 +42,10 @@ class UserData:
         self.no_taxa_redistrib = no_taxa_redistrib
         self.filtervalues = dict()
         self.indir = indir
+        outdir = os.path.abspath(outdir)
+        if not os.path.exists(outdir):
+            os.makedirs(outdir, exist_ok=True)
+            logging.info(f"Created {outdir}")
         self.outdir = outdir
         self.rawfiledir = rawfiledir
         self.searchdb = searchdb  # file name for refseq
