@@ -30,15 +30,15 @@ RefseqInfo = namedtuple(
 
 
 def byte_formatter(b):
-    conv = b / (2 ** 10)
+    conv = b / (2**10)
     if conv < 1000:
         return "{:.4f} KB".format(conv)
     elif conv > 1000:
-        conv = conv / (2 ** 10)
+        conv = conv / (2**10)
         if conv < 1000:
             return "{:.4f} MB".format(conv)
         elif conv < 1000:
-            conv = conv / (2 ** 10)
+            conv = conv / (2**10)
             return "{:.4f} GB".format(conv)
 
 
@@ -482,91 +482,92 @@ def write_md5(filename, chsum):
         f.write(chsum)
 
 
-def _fasta_dict_from_file(file_object, header_search="specific"):
-    """
-    Reads a file of FASTA entries and returns a dict for each entry.
-    It parsers the headers such that `>gi|12345|ref|NP_XXXXX| Description`
-    returns as `{gi: 12345, ref: 'NP_XXXXX', description : 'Description'}`
-    The sequence has all whitespace removed.
+# def _fasta_dict_from_file(file_object, header_search="specific"): # this one is old
+#     """
+#     Reads a file of FASTA entries and returns a dict for each entry.
+#     It parsers the headers such that `>gi|12345|ref|NP_XXXXX| Description`
+#     returns as `{gi: 12345, ref: 'NP_XXXXX', description : 'Description'}`
+#     The sequence has all whitespace removed.
+#
+#     :header_search: One of `specific` or `generic`
+#     if `specific` tries to parse the header
+#     if `general` just returns each whitespace separated header
+#     """
+#
+#     current_id = dict()
+#     current_seq = ""
+#     current_header = None
+#     pat = re.compile(">(\S+)\s*(.*)")
+#     # header_pat = re.compile(r'(\w+)\|(\w+\.?\w*)?')
+#     header_pat = re.compile(r"(\w+)\|(\S+)?")
+#     headers = ["gi", "ref", "geneid", "homologene", "taxon", "symbol"]
+#     header_pat = re.compile(
+#         r"gi\|(\S*)\|ref\|(\S*)\|geneid\|(\S*)\|homologene\|(\S*)\|taxon\|(\S*)\|symbol\|(\S*)"
+#     )
+#
+#     def parse_header(header, pairs=True):
+#         header_dict = dict()
+#         for h in headers:
+#             try:
+#                 head_value = re.search(h + "\|(\w+\.?\d?)\|", header).group(1)
+#             except AttributeError:
+#                 head_value = "" if h != "geneid" else header
+#             header_dict[h] = head_value
+#
+#         # try:
+#         #     keys = header_pat.findall(header)[0]
+#         # except IndexError:
+#         #     # warnings.warn('Error parsing {}, using full as gene id'.format(header))
+#         #     return dict(gi='', ref='', geneid=header, homologene='', taxon='', symbol='')
+#         # header_data = dict()
+#         # for h, key in zip(headers, keys):
+#         #     header_data[h] = key
+#         # for key in keys:
+#         #     header_data[key[0]] = key[1]
+#         # gi -> ProteinGI #, ref -> NP_XXXX
+#         return header_dict
+#
+#     for line in file_object:
+#         line = line.rstrip()
+#         m = pat.search(line)
+#         if m:
+#             ## new residue line matched, purge the existing one, if not the first
+#             if current_id:
+#                 ## remove all whitespace and save
+#                 current_seq = "".join(current_seq.split())
+#                 current_id["sequence"] = current_seq
+#                 yield current_id
+#                 # current_id.clear()  # this is actually bad for list comprehensions
+#                 # as it returns empty dictionaries
+#
+#             current_seq = ""
+#             header = m.group(1)
+#             if header_search == "specific":
+#                 current_id = parse_header(header)
+#             elif header_search == "generic":
+#                 current_id = dict(header=header)
+#             current_id["description"] = m.group(2)
+#
+#         else:
+#             ## python 2.6+ makes string concatenation amortized O(n)
+#             ##  http://stackoverflow.com/a/4435752/1368079
+#             current_seq += str(line)
+#
+#     ## don't forget the last one
+#     current_seq = "".join(current_seq.split())
+#     current_id["sequence"] = current_seq
+#     yield current_id
+#
+#
+# def fasta_dict_from_file(fasta_file, header_search="specific"):
+#     with open(fasta_file, "r") as f:
+#         # yield from _fasta_dict_from_file(f, header_search=header_search)
+#         for v in _fasta_dict_from_file(f, header_search=header_search):
+#             yield v
 
-    :header_search: One of `specific` or `generic`
-    if `specific` tries to parse the header
-    if `general` just returns each whitespace separated header
-    """
+# fasta_dict_from_file.__doc__ = _fasta_dict_from_file.__doc__
 
-    current_id = dict()
-    current_seq = ""
-    current_header = None
-    pat = re.compile(">(\S+)\s*(.*)")
-    # header_pat = re.compile(r'(\w+)\|(\w+\.?\w*)?')
-    header_pat = re.compile(r"(\w+)\|(\S+)?")
-    headers = ["gi", "ref", "geneid", "homologene", "taxon", "symbol"]
-    header_pat = re.compile(
-        r"gi\|(\S*)\|ref\|(\S*)\|geneid\|(\S*)\|homologene\|(\S*)\|taxon\|(\S*)\|symbol\|(\S*)"
-    )
-
-    def parse_header(header, pairs=True):
-        header_dict = dict()
-        for h in headers:
-            try:
-                head_value = re.search(h + "\|(\w+\.?\d?)\|", header).group(1)
-            except AttributeError:
-                head_value = "" if h != "geneid" else header
-            header_dict[h] = head_value
-
-        # try:
-        #     keys = header_pat.findall(header)[0]
-        # except IndexError:
-        #     # warnings.warn('Error parsing {}, using full as gene id'.format(header))
-        #     return dict(gi='', ref='', geneid=header, homologene='', taxon='', symbol='')
-        # header_data = dict()
-        # for h, key in zip(headers, keys):
-        #     header_data[h] = key
-        # for key in keys:
-        #     header_data[key[0]] = key[1]
-        # gi -> ProteinGI #, ref -> NP_XXXX
-        return header_dict
-
-    for line in file_object:
-        line = line.rstrip()
-        m = pat.search(line)
-        if m:
-            ## new residue line matched, purge the existing one, if not the first
-            if current_id:
-                ## remove all whitespace and save
-                current_seq = "".join(current_seq.split())
-                current_id["sequence"] = current_seq
-                yield current_id
-                # current_id.clear()  # this is actually bad for list comprehensions
-                # as it returns empty dictionaries
-
-            current_seq = ""
-            header = m.group(1)
-            if header_search == "specific":
-                current_id = parse_header(header)
-            elif header_search == "generic":
-                current_id = dict(header=header)
-            current_id["description"] = m.group(2)
-
-        else:
-            ## python 2.6+ makes string concatenation amortized O(n)
-            ##  http://stackoverflow.com/a/4435752/1368079
-            current_seq += str(line)
-
-    ## don't forget the last one
-    current_seq = "".join(current_seq.split())
-    current_id["sequence"] = current_seq
-    yield current_id
-
-
-def fasta_dict_from_file(fasta_file, header_search="specific"):
-    with open(fasta_file, "r") as f:
-        # yield from _fasta_dict_from_file(f, header_search=header_search)
-        for v in _fasta_dict_from_file(f, header_search=header_search):
-            yield v
-
-
-fasta_dict_from_file.__doc__ = _fasta_dict_from_file.__doc__
+from RefProtDB.utils import fasta_dict_from_file, _fasta_dict_from_file
 
 
 def convert_tab_to_fasta(
