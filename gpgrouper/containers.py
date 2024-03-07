@@ -111,15 +111,11 @@ class UserData:
 
     def clean(self):
         logging.info("Cleaning")
-        if self.e2g_files:
+        if self.e2g_files: # these are temp files from isobaric label data that can be removed at end
             for x in self.e2g_files:
-                if "QUAL" in x or "QUANT" in x:
-                    continue
                 os.remove(x)
-        if self.psm_files:
+        if self.psm_files: # these are temp files from isobaric label data that can be removed at end
             for x in self.psm_files:
-                if "QUAL" in x or "QUANT" in x:
-                    continue
                 os.remove(x)
 
     # =========================================
