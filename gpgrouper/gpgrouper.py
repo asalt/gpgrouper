@@ -2294,7 +2294,7 @@ def grouper(
     gid_ignore_list = []
     usrdata_out = usrdata.output_name("psms", ext="tsv")
     if gid_ignore_file is not None and os.path.isfile(gid_ignore_file):
-        print("Using gene filter file for normalization.")
+        print(f"Using gene filter file {gid_ignore_file}.")
         gid_ignore_list = get_gid_ignore_list(gid_ignore_file)
 
     area_col = "PrecursorArea"  # set default
@@ -2323,7 +2323,8 @@ def grouper(
     nomatches = usrdata.df[usrdata.df["GeneIDCount_All"] == 0].Sequence  # select all
     # PSMs that didn't get a match to the refseq peptidome
     matched_psms = len(usrdata.df[usrdata.df["GeneIDCount_All"] != 0])
-    unmatched_psms = len(nomatches)
+    unmatched_psms = len(nomatches)  # these lack geneid in the fasta file header
+    # generally contaminants / fasta file entries that
     logging.info(f"Total matched PSMs : {matched_psms}")
     logging.info(f"Total unmatched PSMs : {unmatched_psms}")
 
@@ -2406,7 +2407,24 @@ def grouper(
     #         "Missing 1 or more PSM QUAL columns: {}".format(", ".join(_miss_cols))
     #     )
     # good_qual_data.to_csv(out, index=False, encoding='utf-8', sep='\t', columns=DATA_ID_COLS)
-    _toexclude = ("Sequence_set", "sequence_lower")
+
+    _toexclude = (
+        "Sequence_set",
+        "sequence_lower",
+        "CreationTS",
+        "metadatainfo",
+        "Dataset",
+        "index",
+        "StatMomentsDataCountUsed",
+        "PeakKSStat",
+        "rawfile",  # extra column not used
+        *[
+            x for x in good_qual_data if not re.match(r".*SignalToNoise$", x)
+        ],  # these are columns from MASIC
+        *[
+            x for x in good_qual_data if not re.match(r".*Resolution$", x)
+        ],  # these are columns from MASIC
+    )
     good_qual_data.to_csv(
         psms_qual_f,
         columns=[x for x in good_qual_data if x not in _toexclude],
