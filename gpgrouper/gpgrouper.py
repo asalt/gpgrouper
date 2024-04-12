@@ -2132,16 +2132,6 @@ def concat_isobar_output(
         sep="\t",
     )
 
-    # cleanup
-    for f in files:
-        logging.debug(f)
-        if os.path.exists(f):
-            logging.info(f"Cleanup of file {f}")
-            os.remove(f)
-
-    # out_chksum = os.path.join(outdir, outf[:-3]+'md5')
-    # write_md5(out_chksum, md5sum(os.path.join(outdir, outf)))
-
     logging.info("Export of {} file : {}".format(labeltype, outf))
 
 
@@ -2418,13 +2408,14 @@ def grouper(
         "StatMomentsDataCountUsed",
         "PeakKSStat",
         "rawfile",  # extra column not used
-        *[
-            x for x in good_qual_data if not re.match(r".*SignalToNoise$", x)
-        ],  # these are columns from MASIC
-        *[
-            x for x in good_qual_data if not re.match(r".*Resolution$", x)
-        ],  # these are columns from MASIC
+        # *[
+        #     x for x in good_qual_data if not re.match(r".*SignalToNoise$", x)
+        # ],  # these are columns from MASIC
+        # *[
+        #     x for x in good_qual_data if not re.match(r".*Resolution$", x)
+        # ],  # these are columns from MASIC
     )
+
     good_qual_data.to_csv(
         psms_qual_f,
         columns=[x for x in good_qual_data if x not in _toexclude],
@@ -2432,6 +2423,9 @@ def grouper(
         encoding="utf-8",
         sep="\t",
     )
+
+    import ipdb; ipdb.set_trace()
+
     logging.info(f"Wrote {psms_qual_f}")
 
     # import ipdb; ipdb.set_trace()
@@ -2714,7 +2708,7 @@ def grouper(
             # .pipe(calculate_gene_razorarea, temp_df, normalize)
             .assign(
                 iBAQ_dstrAdj=lambda x: np.divide(
-                    x["AreaSum_dstrAdj"], x["GeneCapacity"]
+                    x["AreaSum_dstrAdj"], min(x["GeneCapacity"], 1)
                 )
             )
             .sort_values(by=["GPGroup"], ascending=True)
@@ -2843,7 +2837,7 @@ def grouper(
         logging.info(f"Wrote {_outf}")
         # usrdata.msf_files.append(_outf)
 
-        usrdata.df = None
+        # usrdata.df = None
 
     export_metadata(
         program_title=program_title,
@@ -2891,29 +2885,33 @@ def grouper(
         _df.to_csv(_outf, index=False, columns=_overlapping_cols, sep="\t")
         logging.info(f"Wrote {_outf}")
 
-        usrdata.clean()
+        # usrdata.clean()
 
-    #  # usrdata.df = pd.merge(usrdata.df, temp_df, how='left')
-    #  concat_isobar_output(
-    #      usrdata.recno,
-    #      usrdata.runno,
-    #      usrdata.searchno,
-    #      usrdata.outdir,
-    #      usrdata.output_name(suffix="psms_QUANT"),
-    #      labeltype=usrdata.labeltype,
-    #      datatype="psms",
-    #      cols=data_cols,
-    #  )
+    import ipdb; ipdb.set_trace()
+    # usrdata.df = pd.merge(usrdata.df, temp_df, how='left')
+    concat_isobar_output(
+        usrdata.recno,
+        usrdata.runno,
+        usrdata.searchno,
+        usrdata.outdir,
+        usrdata.output_name(suffix="psms_QUANT"),
+        labeltype=usrdata.labeltype,
+        datatype="psms",
+        cols=data_cols,
+    )
 
-    #  concat_isobar_output(
-    #      usrdata.recno,
-    #      usrdata.runno,
-    #      usrdata.searchno,
-    #      usrdata.outdir,
-    #      usrdata.output_name(suffix="msf"),
-    #      labeltype=usrdata.labeltype,
-    #      datatype="msf",
-    #  )
+    # import ipdb; ipdb.set_trace()
+    # usrdata.clean()
+
+    concat_isobar_output(
+        usrdata.recno,
+        usrdata.runno,
+        usrdata.searchno,
+        usrdata.outdir,
+        usrdata.output_name(suffix="msf"),
+        labeltype=usrdata.labeltype,
+        datatype="msf",
+    )
 
     # isobar_output.to_csv(os.path.join(usrdata.outdir, usrdata_out), columns=data_cols,
     #                      index=False, encoding='utf-8', sep='\t')
