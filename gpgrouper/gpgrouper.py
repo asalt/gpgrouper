@@ -88,6 +88,8 @@ labelflag = {
     "TMT_133_N": 1331,
     "TMT_133_C": 1330,
     "TMT_134_N": 1340,
+    "TMT_134_C": 1341,
+    "TMT_135":   1350,
     "iTRAQ_114": 113,
     "iTRAQ_114": 114,
     "iTRAQ_115": 115,
@@ -818,9 +820,6 @@ def extract_peptideinfo(usrdata, database):
         func_args=(database,),
         workers=WORKERS,
     ).apply(pd.Series)
-    # import ipdb
-
-    # ipdb.set_trace()
 
     # info.columns = [
     #     "GeneIDs_All",
@@ -1218,8 +1217,9 @@ def rank_peptides(df, area_col, ranks_only=False):
     )
     if not ranks_only:  # don't reset index for just the ranks
         df.reset_index(inplace=True)  # drop=True ?
-    df.Modifications.fillna("", inplace=True)  # must do this to compare nans
-    df[area_col].fillna(0, inplace=True)  # must do this to compare
+    df['Modifications'] = df.Modifications.fillna("")
+    # df[area_col].fillna(0, inplace=True)  # must do this to compare
+    df[area_col] = df[area_col].fillna(0)  # must do this to compare
     # nans
     ranks = (
         df[(df.AUC_UseFLAG == 1) & (df.PSM_UseFLAG == 1) & (df.Peak_UseFLAG == 1)]
@@ -1285,10 +1285,11 @@ def flag_AUC_PSM(
 
     df.loc[df["AUC_reflagger"] == 0, "AUC_UseFLAG"] = 0
 
-    df.loc[
-        df["GeneIDs_All"].fillna("").str.contains(contaminant_label),
-        ["AUC_UseFLAG", "PSM_UseFLAG"],
-    ] = (0, 0)
+    # we don't actually want to do this here because we want the contaminant peptides (and gene products) to "soak up" value, as contaminants are meant to do
+    # df.loc[
+    #     df["GeneIDs_All"].fillna("").str.contains(contaminant_label),
+    #     ["AUC_UseFLAG", "PSM_UseFLAG"],
+    # ] = (0, 0)
 
     # phospho modifications are designated in SequenceModi via: XXS(pho)XX
     # similarly acetyl modifications are designated via: XXK(ace)
@@ -1526,7 +1527,7 @@ def get_psms_for_gene(genes_df, temp_df):
     result = (
         pd.concat((total, total_u2g, total_s, total_s_u2g), copy=False, axis=1)
         .fillna(0)
-        .astype(np.integer)
+        .astype(int)
     )
     genes_df = genes_df.merge(result, how="left", left_on="GeneID", right_index=True)
     return genes_df
@@ -2299,12 +2300,23 @@ def grouper(
     # ==================== Populate gene info ================================ #
     # gene_metadata = extract_metadata(usrdata.df.metadatainfo)
 
-    gene_taxon_dict = gene_taxon_mapper(database)
-    gene_symbol_dict = gene_symbol_mapper(database)
-    gene_desc_dict = gene_desc_mapper(database)
+    # gene_taxon_dict = gene_taxon_mapper(database)
+    gene_taxon_dict = database[["geneid", "taxon"]].set_index("geneid")["taxon"].to_dict()
+
+    # gene_symbol_dict = gene_symbol_mapper(database)
+    gene_symbol_dict = database[["geneid", "symbol"]].set_index("geneid")["symbol"].to_dict()
+
+    # gene_desc_dict = gene_desc_mapper(database)
+    gene_desc_dict = database[["geneid", "description"]].set_index("geneid")["description"].to_dict()
+
     gene_hid_dict = gene_hid_mapper(database)
-    gene_protgi_dict = gene_protgi_mapper(database)
-    gene_protref_dict = gene_protref_mapper(database)
+    # gene_hid_dict = database[["geneid", "hid"]].set_index("geneid")["hid"].to_dict()
+
+    # gene_protgi_dict = gene_protgi_mapper(database)
+    gene_protgi_dict = database[["geneid", "gi"]].set_index("geneid")["gi"].to_dict()
+
+    # gene_protref_dict = gene_protref_mapper(database)
+    gene_protref_dict = database[["geneid", "ref"]].set_index("geneid")["ref"].to_dict()
 
     # ==================== Populate gene info ================================ #
 
@@ -2358,7 +2370,6 @@ def grouper(
     )
 
     # genes_df = (create_df(temp_df, label)
-    # import ipdb; ipdb.set_trace()
     good_qual_data = (
         qual_data.assign(PrecursorArea_split=lambda x: x["PrecursorArea"])
         .pipe(sum_area)  # we have to calculate this here, but will recalculate
@@ -2389,7 +2400,7 @@ def grouper(
     _cols = [
         x
         for x in DATA_ID_COLS
-        if x in good_qual_data and x not in ("sequence-lower", "Sequence_set")
+        if x in good_qual_data and x not in ("sequence_lower", "Sequence_set")
     ]
     _miss_cols = [x for x in DATA_ID_COLS if x not in good_qual_data]
     # if _miss_cols:
@@ -2416,19 +2427,19 @@ def grouper(
         # ],  # these are columns from MASIC
     )
 
-    good_qual_data.to_csv(
-        psms_qual_f,
-        columns=[x for x in good_qual_data if x not in _toexclude],
-        index=False,
-        encoding="utf-8",
-        sep="\t",
-    )
-
-    import ipdb; ipdb.set_trace()
+    try:
+        good_qual_data.to_csv(
+            psms_qual_f,
+            columns=[x for x in good_qual_data if x not in _toexclude],
+            index=False,
+            encoding="utf-8",
+            sep="\t",
+        )
+    except Exception as e:
+        print(e) # this could break things, prevent creation of psms_all concat file, but maybe not
 
     logging.info(f"Wrote {psms_qual_f}")
 
-    # import ipdb; ipdb.set_trace()
     qual_genes = (
         create_df(good_qual_data)
         # .assign(TaxonID = lambda x : x['GeneID'].map(gene_taxon_dict))
@@ -2588,12 +2599,14 @@ def grouper(
         # ======================== Plugin for multiple taxons  ===================== #
         # taxon_ids = usrdata.df['TaxonID'].replace(['0', 0, 'NaN', 'nan', 'NAN'], np.nan).dropna().unique()
         taxon_ids = (
-            dfm["TaxonID"]
+            #dfm["TaxonID"]
+            dfm[ dfm.GeneID != contaminant_label ]["TaxonID"]
             .replace(["0", 0, "NaN", "nan", "NAN", -1, "-1", ""], np.nan)
             .dropna()
             .unique()
         )
 
+        # import ipdb; ipdb.set_trace()
         taxon_totals = dict()
         # usrdata.to_logq("TaxonIDs: {}".format(len(taxon_ids)))
         logging.info("TaxonIDs: {}".format(len(taxon_ids)))
@@ -2703,12 +2716,13 @@ def grouper(
             not usrdata.no_taxa_redistrib,
         )
         now = datetime.now().strftime("%m/%d/%Y %H:%M:%S")
+        genes_df['GeneCapacity'] = genes_df.GeneCapacity.apply(lambda x: max(x, 1))
         genes_df = (
             genes_df.pipe(calculate_gene_dstrarea, temp_df, normalize)
             # .pipe(calculate_gene_razorarea, temp_df, normalize)
             .assign(
                 iBAQ_dstrAdj=lambda x: np.divide(
-                    x["AreaSum_dstrAdj"], min(x["GeneCapacity"], 1)
+                    x["AreaSum_dstrAdj"], x["GeneCapacity"]
                 )
             )
             .sort_values(by=["GPGroup"], ascending=True)
@@ -2887,8 +2901,9 @@ def grouper(
 
         # usrdata.clean()
 
-    import ipdb; ipdb.set_trace()
+    # import ipdb; ipdb.set_trace()
     # usrdata.df = pd.merge(usrdata.df, temp_df, how='left')
+    data_cols = DATA_QUANT_COLS
     concat_isobar_output(
         usrdata.recno,
         usrdata.runno,
@@ -3000,27 +3015,6 @@ def load_fasta(refseq_file):
 
     # gen2 = fasta_dict_from_file(refseq_file, header_search="generic")
     # df2 = pd.DataFrame.from_dict(gen2)  # dtype is already string via RefProtDB
-
-    # routine for converting things to integer if possible, else leave as string
-    # l = []
-    # for g in gen:
-    #     if 'geneid' not in g:
-    #         continue
-    #     if g['geneid'] == '' or (isinstance(g['geneid'], (int, float)) and g['geneid'].isnull()):
-    #         continue
-    #     for k,v in g.items():
-    #         if g[k] == 'nan':
-    #             g[k] = -1
-    #         try:
-    #             g[k] = int(v)
-    #             g['']
-    #         except Exception as e:
-    #             pass
-    #     l.append(g)
-    # # end
-    # df = (pd.DataFrame.from_dict(l)
-    #       # .replace(np.nan, '')
-    # )
 
     # if not all(x in df.columns for x in REQUIRED_COLS):
     #     missing = ", ".join(x for x in REQUIRED_COLS if x not in df.columns)
