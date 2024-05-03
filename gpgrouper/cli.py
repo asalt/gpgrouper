@@ -14,7 +14,7 @@ elif six.PY2:
     from ConfigParser import ConfigParser
 from getpass import getuser
 
-# from pathlib import Path
+from pathlib import Path
 from datetime import datetime
 import multiprocessing
 import warnings
@@ -229,6 +229,7 @@ DEFAULTS = {
     type=click.Path(file_okay=False),
     default=None,
     help="Output directory for files.",
+    show_default=True,
 )
 @click.option(
     "-p",
