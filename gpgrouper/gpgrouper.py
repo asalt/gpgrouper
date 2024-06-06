@@ -886,7 +886,18 @@ def combine_coverage(start_end):
             ix += 1
 
     return start_end
-
+    
+def combine_coverage(intervals):
+    # Dummy function to combine overlapping intervals
+    # This should merge overlapping or contiguous intervals in 'intervals'
+    # Assuming 'intervals' is sorted by the first element
+    merged = []
+    for start, end in sorted(intervals):
+        if merged and merged[-1][1] >= start:
+            merged[-1][1] = max(merged[-1][1], end)
+        else:
+            merged.append([start, end])
+    return merged
 
 def _calc_coverage(seqs, pepts):
     pepts = sorted(
@@ -934,6 +945,47 @@ def _calc_coverage(seqs, pepts):
         print("Warning, GeneID", row["GeneID"], "has a coverage of 0")
         return 0
 
+def _calc_coverage(seqs, pepts):
+    pepts = sorted(pepts, key=lambda x: min(y + len(x) for y in [s.find(x) for s in seqs if s.find(x) != -1]))
+
+    coverages = []
+    for s in seqs:
+        start_end = []
+        for pept in pepts:
+            start = 0
+            mark = s.find(pept.upper(), start)
+            while mark != -1:
+                start_id, end_id = mark, mark + len(pept)
+                
+                # Adjust overlaps
+                updated = False
+                for i in range(len(start_end)):
+                    if start_id < start_end[i][1] and end_id > start_end[i][0]:
+                        if start_id < start_end[i][0] and end_id > start_end[i][1]:
+                            # Peptide completely covers the interval
+                            start_end[i] = [start_id, end_id]
+                            updated = True
+                            break
+                        elif start_id < start_end[i][0]:
+                            end_id = start_end[i][0]
+                        elif end_id > start_end[i][1]:
+                            start_id = start_end[i][1]
+                
+                if not updated and start_id < end_id:
+                    start_end.append([start_id, end_id])
+                
+                start = end_id  # Move start to the end of the current peptide to continue search
+                mark = s.find(pept.upper(), start)
+        
+        start_end = combine_coverage(start_end)
+        coverage = np.sum([end - start for start, end in start_end]) / len(s)
+        coverages.append(coverage)
+
+    if coverages:
+        return np.mean(coverages)
+    else:
+        print("Warning: No coverage calculated.")
+        return 0
 
 def calc_coverage_axis(row, fa, psms):
     """
