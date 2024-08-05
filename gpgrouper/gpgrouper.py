@@ -2991,7 +2991,7 @@ def set_modifications(usrdata):
     usrdata = usrdata.join(modis_abbrev)
 
     # labels = usrdata.Modifications.str.extract('(Label\S+)(?=\))').unique()  # for SILAC
-    no_count = "tmt", "itraq", "Label"
+    no_count = "tmt", "itraq", "Label", "label"
 
     modifications = usrdata.apply(
         lambda x: seq_modi(
