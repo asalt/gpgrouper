@@ -138,7 +138,7 @@ class UserData:
     def flush_log(self):
         if self._LOGSTACK:
             stack, self._LOGSTACK = self._LOGSTACK, list()
-            self.to_log("\n".join(stack))
+            self.to_log("".join(stack))
         return self
 
     # not used anymore
