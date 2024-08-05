@@ -108,7 +108,7 @@ DEFAULTS = {
     "pep": 1.0,
     "enzyme": "trypsin/P",
     "configfile": None,
-    "interval": 3600,
+    # "interval": 3600,
     "rawfiledir": ".",
     "taxonid": None,
     "contaminants": None,
@@ -273,13 +273,6 @@ DEFAULTS = {
     help="Cutoff q-value for a given psm.",
 )
 @click.option(
-    "--quant_source",
-    type=click.Choice(["AUC", "Intensity"]),
-    default=DEFAULTS["quant_source"],
-    show_default=True,
-    help="Cutoff q-value for a given psm.",
-)
-@click.option(
     "-r",
     "--rawfiledir",
     type=click.Path(file_okay=False),
@@ -308,12 +301,12 @@ DEFAULTS = {
     is_flag=True,
     default=False,
     show_default=True,
-    help="""Semi-tryptic enzymatic digestion. Right now only goes a max of 3 AAs in each direction
+    help="""(experimental) Semi-tryptic enzymatic digestion. Right now only goes a max of 3 AAs in each direction
               for performance considerations.""",
 )
 @click.option("--semi-tryptic-iter", default=6, type=int, show_default=True)
 @click.option(
-    "-t", "--taxonid", type=str, help="Taxon ID associated with the database file"
+    "-t", "--taxonid", type=str, help="(experimental) semi-tryptic-iter"
 )
 @click.option(
     "--protein-column",
@@ -389,7 +382,6 @@ def run(
     idg,
     pep,
     qvalue,
-    quant_source,
     rawfiledir,
     configfile,
     semi_tryptic,
@@ -486,7 +478,7 @@ def run(
         usrdata.indir, usrdata.datafile = INPUT_DIR, usrfile
         usrdata.outdir = OUTPUT_DIR or Path(OUTPUT_DIR).resolve().__str__()
         # later on expected that datafile is separated from path
-        usrdata.quant_source = quant_source
+        usrdata.quant_source = 'AUC'
         usrdata.pipeline = pipeline
         if filtervalues:  # if defined earlier from passed config file
             usrdata.filtervalues = filtervalues

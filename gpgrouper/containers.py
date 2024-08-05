@@ -157,6 +157,7 @@ class UserData:
     def read_csv(self, *args, **kwargs):
         """Uses pandas read_csv function to read an input file
         args and kwargs are passed to this function"""
+        # kwargs['nrows'] = 1000
         try:
             self.df = pd.read_csv(self.full_path(), *args, **kwargs)
             self.original_columns = self.df.columns.values
