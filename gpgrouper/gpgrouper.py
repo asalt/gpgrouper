@@ -1284,6 +1284,8 @@ def flag_AUC_PSM(
         ] = 0
 
     df.loc[df["AUC_reflagger"] == 0, "AUC_UseFLAG"] = 0
+    df.loc[ df.is_decoy == True, 'AUC_UseFLAG' ] = 0
+    df.loc[ df.is_decoy == True, 'PSM_USeFLAG' ] = 0
 
     # we don't actually want to do this here because we want the contaminant peptides (and gene products) to "soak up" value, as contaminants are meant to do
     # df.loc[
@@ -2265,6 +2267,8 @@ def grouper(
     contaminant_label="__CONTAMINANT__",
     razor=False,
 ):
+    usrdata.df['is_decoy'] = False
+    usrdata.df.loc[ usrdata.df.raw_headers_All.str.contains("rev_"), 'is_decoy' ] = True
     if labels is None:
         labels = dict()
     """Function to group a psm file from PD after Mascot Search"""
@@ -2522,6 +2526,7 @@ def grouper(
             "PSM_IDG",
             "sequence_lower",
             "Peak_UseFLAG",
+            "is_decoy",
         ]
         if x in qual_data
     ]
