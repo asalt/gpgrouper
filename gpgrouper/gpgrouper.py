@@ -2183,8 +2183,9 @@ def assign_sra(df):
 
 def set_protein_groups_axis(row, protgis, protrefs):
     gid = row.name
-    valid_protgis = protgis.get(gid, "").split(SEP)
-    valid_refs = protrefs.get(gid, "").split(SEP)
+    valid_protgis = str(protgis.get(gid, "")).split(SEP)
+    valid_refs = str(protrefs.get(gid, "")).split(SEP)
+
     # protgis = filter(lambda x: not np.isnan(x), row.loc['ProteinGIs_All'])
     protgis = [x for x in row.loc["ProteinGIs_All"] if isinstance(x, str)]
     protrefs = [x for x in row.loc["ProteinRefs_All"] if isinstance(x, str)]
