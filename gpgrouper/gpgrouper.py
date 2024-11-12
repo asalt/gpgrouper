@@ -1956,7 +1956,7 @@ def regularize_filename(f):
     return out
 
 
-def split_multiplexed(usrdata, labeltypes, exp_labeltype="none"):
+def split_multiplexed(usrdata, labeltypes, exp_labeltype="none", tmt_reference=None ):
     df = usrdata.df
 
     if exp_labeltype == "none":
@@ -2018,35 +2018,46 @@ def split_multiplexed(usrdata, labeltypes, exp_labeltype="none"):
     else:
         df.loc[~df["SequenceModi"].str.contains(query), "LabelFLAG"] = 0
 
-    for label in labeltypes:
-        with_reporter = df[
-            (df["SequenceModi"].str.contains(query, case=True))
-            | (
-                df.SequenceModi.str.startswith("C")
-                & (df.SequenceModi.str.contains("361.228|286.18"))
-            )
-            | (
-                df.SequenceModi.str.startswith("K")
-                & (df.SequenceModi.str.contains("608.414|458"))
-            )
-        ].copy()
+    #
+    # scale labeltypes
 
-        if usrdata.labeltype == "TMT" and len(with_reporter) == 0:
-            warn(
-                "No TMT modifications detected, will assume all are statically modified"
-            )
-            with_reporter = df.copy()
+    with_reporter = df[
+        (df["SequenceModi"].str.contains(query, case=True))
+        | (
+            df.SequenceModi.str.startswith("C")
+            & (df.SequenceModi.str.contains("361.228|286.18"))
+        )
+        | (
+            df.SequenceModi.str.startswith("K")
+            & (df.SequenceModi.str.contains("608.414|458"))
+        )
+    ].copy()
+
+    if usrdata.labeltype == "TMT" and len(with_reporter) == 0:
+        warn(
+            "No TMT modifications detected, will assume all are statically modified"
+        )
+        with_reporter = df.copy()
+
+    with_reporter['total_reporter_intensity'] = with_reporter[labeltypes].sum(1)
+
+
+    for label in labeltypes:
         # we add this to take care fo cystines at the n terminus with carbamidomethylation and TMT10/Pro
+        # import ipdb; ipdb.set_trace()
         reporter_area = (
             with_reporter["PrecursorArea"]
             * with_reporter[label]
-            / with_reporter[labeltypes].sum(1)
+            / with_reporter["total_reporter_intensity"]
         )
+
+        # now do something with tmt_reference if given and specified. we scale by the ref intensity.
         # new_area_col = '' + area_col + '_split'
         reporter_area.name = "PrecursorArea_split"
         temp_df = df.join(
             reporter_area, how="right"
         )  # only keep peptides with good reporter ion
+
         temp_df["LabelFLAG"] = label
         # temp_df['ReporterIntensity'] = with_reporter[label]
         temp_df = temp_df.join(with_reporter[label].to_frame("ReporterIntensity"))
@@ -2347,7 +2358,7 @@ def grouper(
 
     if len(labeltypes) == 0:
         raise ValueError(f"No labels found indata for dtype {usrdata.labeltype}")
-    psm_data = split_multiplexed(usrdata, labeltypes, exp_labeltype=usrdata.labeltype)
+    psm_data = split_multiplexed(usrdata, labeltypes, exp_labeltype=usrdata.labeltype, tmt_reference=tmt_reference)
     # dictionary of labels : dataframe of data
 
     dtypes = usrdata.df.dtypes.to_dict()
@@ -3358,6 +3369,7 @@ def main(
     semi_tryptic=False,
     semi_tryptic_iter=6,
     min_pept_len=7,
+    tmt_reference=None,
     workers=1,
     razor=False,
     miscuts=2,
