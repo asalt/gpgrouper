@@ -4,15 +4,16 @@ from __future__ import print_function
 import tqdm
 
 import re, os, sys, time
+from time import sleep
+from pprint import pprint
 import itertools
 import json
 import logging
-from time import sleep
 from collections import defaultdict
 from functools import partial
 from math import ceil
-from warnings import warn
 import warnings
+from warnings import warn
 import six
 
 if six.PY3:
@@ -59,7 +60,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 logfilename = program_title.replace(" ", "_") + ".log"
 logging.basicConfig(
-    format=("[{levelname}] {asctime}s {message}s {message}"),
+    format=("[{levelname}] {asctime} {message} {message}"),
     level=logging.INFO,
     style="{",
     # level=verbosity_dict[config.verbosity],
@@ -2278,6 +2279,7 @@ def grouper(
     labels=None,
     contaminant_label="__CONTAMINANT__",
     razor=False,
+    tmt_reference=None,
 ):
     usrdata.df['is_decoy'] = False
     usrdata.df.loc[ usrdata.df.raw_headers_All.str.contains("rev_"), 'is_decoy' ] = True
@@ -3234,6 +3236,8 @@ def set_up(usrdatas, column_aliases, enzyme="trypsin/P", protein_column=None):
 
             rev_mapping = {v: k for k, v in standard_name_mapper.items()}
 
+            pprint(rev_mapping)
+
             if protein_column is not None:
                 protein_column_out = rev_mapping.get(protein_column, protein_column)
             else:
@@ -3428,8 +3432,9 @@ def main(
             miscuts=miscuts,
         )
 
-    if all(usrdata.EXIT_CODE != 0 for usrdata in usrdatas):
-        return usrdatas
+    # if all(usrdata.EXIT_CODE != 0 for usrdata in usrdatas):
+    #     return usrdatas
+    # this is not really necessary to check
 
     # failed_exps = []
     for usrdata in usrdatas:
