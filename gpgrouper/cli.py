@@ -22,6 +22,7 @@ import warnings
 import click
 
 from . import subfuncts, gpgrouper, _version
+from .split_diann_export import split_diann_export
 from .containers import UserData
 from .parse_config import parse_configfile, find_configfile, Config
 
@@ -91,6 +92,14 @@ def openconfig(path):
         click.echo("Could not find config file in {}".format(path))
         return
     click.launch(config_file)
+
+
+@cli.command(context_settings=CONTEXT_SETTINGS)
+@click.option("-s", "--search-no", default=4, show_default=True, type=int)
+@click.argument("diann-export", type=click.Path(exists=True))
+def prepare_diann(search_no, diann_export):
+    print(diann_export)
+    split_diann_export(diann_export, search_no=search_no)
 
 
 def validate_cores(ctx, param, value):
@@ -191,6 +200,10 @@ DEFAULTS = {
     default=DEFAULTS["labeltype"],
     show_default=True,
     help="Type of label for this experiment.",
+)
+@click.option(
+    "--tmt-reference",
+    help="reference channel to ratio all other channels by when calculating psm auc. only used if --labeltype == TMT",
 )
 @click.option("--min-pept-len", default=7, show_default=True)
 @click.option(
@@ -305,9 +318,7 @@ DEFAULTS = {
               for performance considerations.""",
 )
 @click.option("--semi-tryptic-iter", default=6, type=int, show_default=True)
-@click.option(
-    "-t", "--taxonid", type=str, help="(experimental) semi-tryptic-iter"
-)
+@click.option("-t", "--taxonid", type=str, help="(experimental) semi-tryptic-iter")
 @click.option(
     "--protein-column",
     default=None,
@@ -387,6 +398,7 @@ def run(
     semi_tryptic,
     semi_tryptic_iter,
     taxonid,
+    tmt_reference,
     zmin,
     zmax,
     protein_column,
@@ -478,7 +490,7 @@ def run(
         usrdata.indir, usrdata.datafile = INPUT_DIR, usrfile
         usrdata.outdir = OUTPUT_DIR or Path(OUTPUT_DIR).resolve().__str__()
         # later on expected that datafile is separated from path
-        usrdata.quant_source = 'AUC'
+        usrdata.quant_source = "AUC"
         usrdata.pipeline = pipeline
         if filtervalues:  # if defined earlier from passed config file
             usrdata.filtervalues = filtervalues
@@ -516,6 +528,7 @@ def run(
         column_aliases=column_aliases,
         gid_ignore_file=contaminants,
         labels=LABELS,
+        tmt_reference=tmt_reference,  # only used if labeltype == TMT
         contaminant_label=contaminant_label,
         enzyme=enzyme,
         semi_tryptic=semi_tryptic,
