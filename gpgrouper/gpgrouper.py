@@ -40,9 +40,11 @@ parser.expasy_rules["chymotrypsin"] = parser.expasy_rules[
     "chymotrypsin high specificity"
 ]
 
+# from gpgrouper import __version__, __copyright__
+# import gpgrouper._version
 from . import _version
-from .subfuncts import *
-from .constants import (
+from gpgrouper.subfuncts import *
+from gpgrouper.constants import (
     SEP,
     labelflag,
     flaglabel,
@@ -3141,6 +3143,7 @@ def set_up(usrdatas, column_aliases, enzyme="trypsin/P", protein_column=None):
             logging.warning("No q_value available")
             usrdata.df["q_value"] = 0
         if "PrecursorArea" not in usrdata.df:
+            raise ValueError("!!")
             usrdata.df["PrecursorArea"] = 1
             # try:
             #     usrdata.df["q_value"] = usrdata.df["PEP"] / 10  # rough approximation
