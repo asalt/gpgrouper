@@ -559,6 +559,7 @@ def _format_peptideinfo(row):
         "taxon": "TaxonID",
         "taxonid": "TaxonID",
         "symbol": "GeneSymbol",
+        "genesymbol": "GeneSymbol",
         "ref": "ProteinRef",
         "gi": "ProteinGI",
         "hid": "HID",
@@ -2193,7 +2194,6 @@ def grouper(
     # labels is a list of labels to look for as specified in config file
     # usrdata.labeltype instructs `get_labels` what experiment type we are dealing with
     # usrdata.df should already have column names renamed to match the possible expected labeltypes
-    # import ipdb; ipdb.set_trace()
 
     if len(labeltypes) == 0:
         raise ValueError(f"No labels found indata for dtype {usrdata.labeltype}")
@@ -2473,7 +2473,6 @@ def grouper(
             .unique()
         )
 
-        # import ipdb; ipdb.set_trace()
         taxon_totals = dict()
         # usrdata.to_logq("TaxonIDs: {}".format(len(taxon_ids)))
         logging.info("TaxonIDs: {}".format(len(taxon_ids)))
@@ -2772,7 +2771,6 @@ def grouper(
 
         # usrdata.clean()
 
-    # import ipdb; ipdb.set_trace()
     # usrdata.df = pd.merge(usrdata.df, temp_df, how='left')
     data_cols = DATA_QUANT_COLS
     concat_isobar_output(
@@ -2786,7 +2784,6 @@ def grouper(
         cols=data_cols,
     )
 
-    # import ipdb; ipdb.set_trace()
     # usrdata.clean()
 
     concat_isobar_output(
@@ -2835,21 +2832,21 @@ def calculate_breakup_size(row_number, enzyme="trypsin"):
 
 def set_modifications(usrdata):
     to_replace = {
-        "DeStreak": "des",
-        "Deamidated": "dam",
-        "Carbamidomethyl": "car",
-        "Oxidation": "oxi",
-        "Phospho": "pho",
-        "Acetyl": "ace",
-        "GlyGly": "gg",
-        "Label:13C(6)": "lab",
-        "Label:13C(6)+GlyGly": "labgg",
-        "\)\(": ":",
-        "79.9663": "pho",
-        "229.1629": "TMT6",
-        "304.207": "TMT16",
-        "57.0215": "car",
-        "15.9949": "oxi",
+        r"DeStreak": "des",
+        r"Deamidated": "dam",
+        r"Carbamidomethyl": "car",
+        r"Oxidation": "oxi",
+        r"Phospho": "pho",
+        r"Acetyl": "ace",
+        r"GlyGly": "gg",
+        r"Label:13C(6)": "lab",
+        r"Label:13C(6)+GlyGly": "labgg",
+        r"\)\(": ":",
+        r"79.9663": "pho",
+        r"229.1629": "TMT6",
+        r"304.207": "TMT16",
+        r"57.0215": "car",
+        r"15.9949": "oxi",
         # "": "",
     }
     modis_abbrev = usrdata.Modifications.fillna("").replace(regex=to_replace).fillna("")
@@ -2879,11 +2876,10 @@ def set_modifications(usrdata):
 
 def load_fasta(refseq_file):
     REQUIRED_COLS = ("geneid", "sequence")
-    ADDITIONAL_COLS = ("description", "gi", "homologene", "ref", "taxon", "symbol")
+    ADDITIONAL_COLS = ("description", "gi", "homologene", "ref", "taxon", "symbol", "genesymbol")
 
     gen = fasta_dict_from_file(refseq_file, header_search="specific")
     df = pd.DataFrame.from_dict(gen)  # dtype is already string via RefProtDB
-
     # gen2 = fasta_dict_from_file(refseq_file, header_search="generic")
     # df2 = pd.DataFrame.from_dict(gen2)  # dtype is already string via RefProtDB
 
@@ -2894,6 +2890,8 @@ def load_fasta(refseq_file):
     missing_cols = (x for x in ADDITIONAL_COLS if x not in df.columns)
     for col in missing_cols:
         df[col] = ""
+    if "genesymbol" in df.columns and "symbol" not in df.columns:
+        df["symbol"] = df["genesymbol"]
     return df
 
 
@@ -2912,7 +2910,7 @@ ENZYME = {
 
 def _match(
     usrdatas,
-    refseq_file,
+    refseq_file: str,
     miscuts=2,
     enzyme="trypsin/P",
     semi_tryptic=False,
@@ -3051,10 +3049,18 @@ def column_identifier(df, aliases):
     column_names = dict()
     for col in aliases:
         for alias in aliases[col]:
-            name = [dfcolumn for dfcolumn in df.columns if dfcolumn == alias]
+            if alias.startswith("*"):
+                alias_string = alias.split("*")[-1]
+                name = [dfcolumn for dfcolumn in df.columns if dfcolumn.endswith(alias_string) ]
+            elif alias.endswith("*"):
+                alias_string = alias.split("*")[0]
+                name = [dfcolumn for dfcolumn in df.columns if dfcolumn.startswith(alias_string) ]
+            else:
+                name = [dfcolumn for dfcolumn in df.columns if dfcolumn == alias]
             if len(name) == 1:
                 column_names[col] = name[0]
                 break
+    # import ipdb; ipdb.set_trace()
     return column_names
 
 
@@ -3284,7 +3290,7 @@ def main(
         databases = dict()
 
         for usrdata in usrdatas:
-            database = map_to_gene(
+            database = map_to_gene(  # may not wish to do this if original database search did not contain isoform info, if interested in knowing all protein isoforms
                 usrdata, protein_column, identifier=protein_columntype
             )
 
