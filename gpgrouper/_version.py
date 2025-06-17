@@ -14,6 +14,7 @@ _package_files = [
     "_version.py",
     "containers.py",
     "auto_grouper.py",
+    "mapper.py",
 ]
-__version__ = "0.2.000"
+__version__ = "0.2.002"
 __copyright__ = date.fromtimestamp(_calculate_latest_edit(_package_files)).__str__()
