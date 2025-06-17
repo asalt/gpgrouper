@@ -1819,13 +1819,14 @@ def split_multiplexed(usrdata, labeltypes, exp_labeltype="none", tmt_reference=N
     output = dict()
 
     # TMTPro
-    query = "{}|229|304.207|608.414".format(
+    query = "{}|229|304.207|608.414|305|229".format(
         exp_labeltype.lower()
     )  # exp_labeltype is a string like "TMT" or "none"
     df["LabelFLAG"] = np.nan
     # assign labeltype
     _how_many_seqmodis_are_modified = df.loc[
-        df["SequenceModi"].str.contains(query)
+        (df["SequenceModi"].str.contains(query) ) |
+        ( df["Modifications"].fillna('').str.contains(query) )
     ].pipe(len)
     if _how_many_seqmodis_are_modified == 0 and exp_labeltype == "TMT":
         warn(
@@ -3190,7 +3191,7 @@ def set_up(usrdatas, column_aliases, enzyme="trypsin/P", protein_column=None):
             usrdata.df.rename(
                 columns={"Modified sequence": "SequenceModi"}, inplace=True
             )
-            if "Modifications" in usrdata.df:
+            if "Modifications" in usrdata.df and "SequenceModi" not in usrdata.df:
                 usrdata.df["SequenceModiCount"] = count_modis_maxquant(
                     usrdata.df, usrdata.labeltype
                 )
@@ -3200,6 +3201,8 @@ def set_up(usrdatas, column_aliases, enzyme="trypsin/P", protein_column=None):
                 )
                 # usrdata.categorical_assign("Modifications", "")
                 usrdata.df["Modifications"] = ""
+            else:
+                usrdata.df["SequenceModiCount"] = 0 #
 
         if usrdata.df.SequenceModi.isna().any():
             usrdata.df.loc[usrdata.df.SequenceModi.isna(), "SequenceModi"] = (

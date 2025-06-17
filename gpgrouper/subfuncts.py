@@ -244,7 +244,7 @@ def seq_modi(sequence, modifications, no_count=None):
     seqlist = list(sequence)
     modi_len = 0  # default length is zero, can change
     label = 0  # default label = 0, can change
-    label_search = re.search("(Label\S+)(?=\))", modifications)  # for SILAC
+    label_search = re.search(r"(Label\S+)(?=\))", modifications)  # for SILAC
     if label_search:
         label = label_search.group(0)
 
@@ -441,15 +441,15 @@ def count_modis_maxquant(df, labeltype):
 
 def count_modis_seqmodi(df, labeltype):
     if labeltype == "TMT":
-        return df.SequenceModi.str.count("\(") - df.SequenceModi.str.count(
-            "\([TMT|tmt]"
-        )
+        return df.SequenceModi.str.count(r"[\(|\[]") - df.SequenceModi.str.count(
+            r"[\(|\[][TMT|tmt|305|229]"
+        ).fillna(0)
     elif labeltype == "iTRAQ":
-        return df.SequenceModi.str.count("\(") - df.SequenceModi.str.count(
-            "\([iTRAQ|itraq]"
-        )
+        return df.SequenceModi.str.count(r"\(") - df.SequenceModi.str.count(
+            r"[\(|\[][iTRAQ|itraq]"
+        ).fillna(0)
     else:
-        return df.SequenceModi.str.count("\(")
+        return df.SequenceModi.str.count(r"[\(|\[]").fillna(0)
 
 
 def calculate_miscuts(seq, targets=None, exceptions=None):
