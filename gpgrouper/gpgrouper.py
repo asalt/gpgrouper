@@ -1099,7 +1099,7 @@ def flag_AUC_PSM(
 
     df.loc[df["AUC_reflagger"] == 0, "AUC_UseFLAG"] = 0
     df.loc[df.is_decoy == True, "AUC_UseFLAG"] = 0
-    df.loc[df.is_decoy == True, "PSM_USeFLAG"] = 0
+    df.loc[df.is_decoy == True, "PSM_UseFLAG"] = 0
 
     # we don't actually want to do this here because we want the contaminant peptides (and gene products) to "soak up" value, as contaminants are meant to do
     # df.loc[
@@ -1109,10 +1109,9 @@ def flag_AUC_PSM(
 
     # phospho modifications are designated in SequenceModi via: XXS(pho)XX
     # similarly acetyl modifications are designated via: XXK(ace)
-    # import ipdb; ipdb.set_trace()
     if phospho:
         df.loc[
-                ~df["SequenceModi"].str.contains(r"pho|79.966|UniMod\:21", case=True),
+            ~df["SequenceModi"].str.contains(r"pho|79.966|UniMod\:21", case=True),
             ["AUC_UseFLAG", "PSM_UseFLAG"],
         ] = (0, 0)
     elif acetyl:
@@ -1120,7 +1119,6 @@ def flag_AUC_PSM(
             ~df["SequenceModi"].str.contains("ace", case=True),
             ["AUC_UseFLAG", "PSM_UseFLAG"],
         ] = (0, 0)
-    # import ipdb; ipdb.set_trace()
 
     return df
 
@@ -1827,8 +1825,8 @@ def split_multiplexed(usrdata, labeltypes, exp_labeltype="none", tmt_reference=N
     df["LabelFLAG"] = np.nan
     # assign labeltype
     _how_many_seqmodis_are_modified = df.loc[
-        (df["SequenceModi"].str.contains(query) ) |
-        ( df["Modifications"].fillna('').str.contains(query) )
+        (df["SequenceModi"].str.contains(query))
+        | (df["Modifications"].fillna("").str.contains(query))
     ].pipe(len)
     if _how_many_seqmodis_are_modified == 0 and exp_labeltype == "TMT":
         warn(
@@ -2834,6 +2832,35 @@ def calculate_breakup_size(row_number, enzyme="trypsin"):
     return ceil(row_number / 4)
 
 
+def clean_modified_sequence(series):
+    to_replace = {
+        r"DeStreak": "des",
+        r"Deamidated": "dam",
+        r"Carbamidomethyl": "car",
+        r"Oxidation": "oxi",
+        r"Phospho": "pho",
+        r"UniMod:21": "pho",
+        r"UniMod:1": "ace",
+        r"Acetyl": "ace",
+        r"GlyGly": "gg",
+        r"Label:13C(6)": "lab",
+        r"Label:13C(6)+GlyGly": "labgg",
+        r"\)\(": ":",
+        r"79\.9663": "pho",
+        r"229\.1629": "TMT6",
+        r"304\.207": "TMT16",
+        r"57\.0215": "car",
+        r"15\.9949": "oxi",
+        # "": "",
+    }
+    pattern = re.compile("|".join(map(re.escape, to_replace)))
+
+    return series.fillna("").apply(
+        lambda s: pattern.sub(lambda m: to_replace[m.group(0)], s)
+    )
+    # return series.fillna('').replace(regex=to_replace).fillna('')
+
+
 def set_modifications(usrdata):
     to_replace = {
         r"DeStreak": "des",
@@ -2841,6 +2868,8 @@ def set_modifications(usrdata):
         r"Carbamidomethyl": "car",
         r"Oxidation": "oxi",
         r"Phospho": "pho",
+        r"UniMod:21": "pho",
+        r"UniMod:1": "ace",
         r"Acetyl": "ace",
         r"GlyGly": "gg",
         r"Label:13C(6)": "lab",
@@ -2853,7 +2882,8 @@ def set_modifications(usrdata):
         r"15.9949": "oxi",
         # "": "",
     }
-    modis_abbrev = usrdata.Modifications.fillna("").replace(regex=to_replace).fillna("")
+    # modis_abbrev = usrdata.Modifications.fillna("").replace(regex=to_replace).fillna("")
+    modis_abbrev = clean_modified_sequence(usrdata.Modifications)
     modis_abbrev.name = "Modifications_abbrev"
     usrdata = usrdata.join(modis_abbrev)
 
@@ -2880,7 +2910,15 @@ def set_modifications(usrdata):
 
 def load_fasta(refseq_file):
     REQUIRED_COLS = ("geneid", "sequence")
-    ADDITIONAL_COLS = ("description", "gi", "homologene", "ref", "taxon", "symbol", "genesymbol")
+    ADDITIONAL_COLS = (
+        "description",
+        "gi",
+        "homologene",
+        "ref",
+        "taxon",
+        "symbol",
+        "genesymbol",
+    )
 
     gen = fasta_dict_from_file(refseq_file, header_search="specific")
     df = pd.DataFrame.from_dict(gen)  # dtype is already string via RefProtDB
@@ -2950,15 +2988,17 @@ def _match(
 
     # Define a function to pick the shortest non-null string from a row
     def shortest_nonnull(row, candidates):
-        nonnulls = [str(row[col]) for col in candidates if pd.notna(row[col]) ]
+        nonnulls = [str(row[col]) for col in candidates if pd.notna(row[col])]
         if not nonnulls:
             return np.nan
         return min(filter(lambda x: len(x) > 0, nonnulls), key=len)
 
     # Apply it to only the rows with missing geneid
-    mask = database['geneid'].isna()
+    mask = database["geneid"].isna()
     candidates = set(database.columns) - {"sequence"}
-    database.loc[mask, 'geneid'] = database.loc[mask].apply(lambda x: shortest_nonnull(x, candidates), axis=1)
+    database.loc[mask, "geneid"] = database.loc[mask].apply(
+        lambda x: shortest_nonnull(x, candidates), axis=1
+    )
 
     breakup_size = calculate_breakup_size(len(database), enzyme=enzyme)
     logging.info(f"breakup size {breakup_size}")
@@ -3068,10 +3108,18 @@ def column_identifier(df, aliases):
         for alias in aliases[col]:
             if alias.startswith("*"):
                 alias_string = alias.split("*")[-1]
-                name = [dfcolumn for dfcolumn in df.columns if dfcolumn.endswith(alias_string) ]
+                name = [
+                    dfcolumn
+                    for dfcolumn in df.columns
+                    if dfcolumn.endswith(alias_string)
+                ]
             elif alias.endswith("*"):
                 alias_string = alias.split("*")[0]
-                name = [dfcolumn for dfcolumn in df.columns if dfcolumn.startswith(alias_string) ]
+                name = [
+                    dfcolumn
+                    for dfcolumn in df.columns
+                    if dfcolumn.startswith(alias_string)
+                ]
             else:
                 name = [dfcolumn for dfcolumn in df.columns if dfcolumn == alias]
             if len(name) == 1:
@@ -3199,26 +3247,34 @@ def set_up(usrdatas, column_aliases, enzyme="trypsin/P", protein_column=None):
         # ===================================================================
 
         if not usrdata.pipeline == "MQ" and not any(
-            x in usrdata.df for x in ("Modified sequence", "SequenceModi")
+            x in usrdata.df
+            for x in ("Modified sequence", "SequenceModi", "Modified.Sequence")
         ):  # MaxQuant already has modifications
             usrdata.df = set_modifications(usrdata.df)
         else:
             # usrdata.df['SequenceModi'] = usrdata.df['Modified sequence']
             usrdata.df.rename(
-                columns={"Modified sequence": "SequenceModi"}, inplace=True
+                columns={
+                    "Modified sequence": "SequenceModi",
+                    "Modified.Sequence": "SequenceModi",
+                },
+                inplace=True,
             )
             if "Modifications" in usrdata.df and "SequenceModi" not in usrdata.df:
                 usrdata.df["SequenceModiCount"] = count_modis_maxquant(
                     usrdata.df, usrdata.labeltype
                 )
             elif "SequenceModi" in usrdata.df:  # should be if we get to this point
+                usrdata.df["SequenceModi"] = clean_modified_sequence(
+                    usrdata.df.SequenceModi
+                )
                 usrdata.df["SequenceModiCount"] = count_modis_seqmodi(
                     usrdata.df, usrdata.labeltype
                 )
                 # usrdata.categorical_assign("Modifications", "")
-                usrdata.df["Modifications"] = ""
+                usrdata.df["Modifications"] = ""  # TODO fill in properly
             else:
-                usrdata.df["SequenceModiCount"] = 0 #
+                usrdata.df["SequenceModiCount"] = 0  #
 
         if usrdata.df.SequenceModi.isna().any():
             usrdata.df.loc[usrdata.df.SequenceModi.isna(), "SequenceModi"] = (
