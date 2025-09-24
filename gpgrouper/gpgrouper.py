@@ -1109,9 +1109,10 @@ def flag_AUC_PSM(
 
     # phospho modifications are designated in SequenceModi via: XXS(pho)XX
     # similarly acetyl modifications are designated via: XXK(ace)
+    # import ipdb; ipdb.set_trace()
     if phospho:
         df.loc[
-            ~df["SequenceModi"].str.contains("pho|79.966", case=True),
+                ~df["SequenceModi"].str.contains(r"pho|79.966|UniMod\:21", case=True),
             ["AUC_UseFLAG", "PSM_UseFLAG"],
         ] = (0, 0)
     elif acetyl:
@@ -1119,6 +1120,7 @@ def flag_AUC_PSM(
             ~df["SequenceModi"].str.contains("ace", case=True),
             ["AUC_UseFLAG", "PSM_UseFLAG"],
         ] = (0, 0)
+    # import ipdb; ipdb.set_trace()
 
     return df
 
@@ -2178,6 +2180,7 @@ def grouper(
     # PSMs that didn't get a match to the refseq peptidome
     matched_psms = len(usrdata.df[usrdata.df["GeneIDCount_All"] != 0])
     unmatched_psms = len(nomatches)  # these lack geneid in the fasta file header
+    print(nomatches.head())
     # generally contaminants / fasta file entries that
     logging.info(f"Total matched PSMs : {matched_psms}")
     logging.info(f"Total unmatched PSMs : {unmatched_psms}")
@@ -2944,6 +2947,19 @@ def _match(
     # rename_refseq_cols(database, refseq_file)
     database = load_fasta(refseq_file)
     database["capacity"] = np.nan
+
+    # Define a function to pick the shortest non-null string from a row
+    def shortest_nonnull(row, candidates):
+        nonnulls = [str(row[col]) for col in candidates if pd.notna(row[col]) ]
+        if not nonnulls:
+            return np.nan
+        return min(filter(lambda x: len(x) > 0, nonnulls), key=len)
+
+    # Apply it to only the rows with missing geneid
+    mask = database['geneid'].isna()
+    candidates = set(database.columns) - {"sequence"}
+    database.loc[mask, 'geneid'] = database.loc[mask].apply(lambda x: shortest_nonnull(x, candidates), axis=1)
+
     breakup_size = calculate_breakup_size(len(database), enzyme=enzyme)
     logging.info(f"breakup size {breakup_size}")
 
