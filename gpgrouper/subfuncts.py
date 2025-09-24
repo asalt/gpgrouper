@@ -233,8 +233,8 @@ def seq_modi(sequence, modifications, no_count=None):
     all other modifications should be ignored.
     Sometimes N-terminal modifications are present, this should be considered the same as a modification at the first amino acid.
 
-    modifications is a 1-based index of amino acid and modification delimited by semicolon (; ):
-    M1(Oxidation) is first amino acid methionine Oxidized
+    modifications is a 1-based index of amino acid and modification delimited by semicolon ; (or maybe a comma sometimes?):
+    e.g. M1(Oxidation) is first amino acid methionine Oxidized
 
     """
     if no_count is None:
@@ -262,9 +262,17 @@ def seq_modi(sequence, modifications, no_count=None):
     modpos = [
         0 if x.lower() == "n-term" else int(x) - 1 for x in modpos
     ]  # n terminal is at first position
+    def _normalize_mod(value):
+        lowered = value.lower()
+        if lowered.startswith("unimod:"):
+            parts = value.split(":", 1)
+            suffix = parts[1] if len(parts) > 1 else ""
+            return "UniMod:{}".format(suffix) if suffix else "UniMod"
+        return lowered
+
     mod_dict = defaultdict(list)
     for (key, value) in zip(modpos, modkeys):
-        mod_dict[key].append(value.lower())
+        mod_dict[key].append(_normalize_mod(value))
     for key, values in mod_dict.items():
         mod_dict[key] = sorted(values)
     for ix, s in enumerate(sequence.upper()):
