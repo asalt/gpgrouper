@@ -2834,26 +2834,25 @@ def calculate_breakup_size(row_number, enzyme="trypsin"):
 
 def clean_modified_sequence(series):
     to_replace = {
-        r"DeStreak": "des",
-        r"Deamidated": "dam",
-        r"Carbamidomethyl": "car",
-        r"Oxidation": "oxi",
-        r"Phospho": "pho",
-        r"UniMod:21": "pho",
-        r"UniMod:1": "ace",
-        r"Acetyl": "ace",
-        r"GlyGly": "gg",
-        r"Label:13C(6)": "lab",
-        r"Label:13C(6)+GlyGly": "labgg",
-        r"\)\(": ":",
-        r"79\.9663": "pho",
-        r"229\.1629": "TMT6",
-        r"304\.207": "TMT16",
-        r"57\.0215": "car",
-        r"15\.9949": "oxi",
+        "DeStreak": "des",
+        "Deamidated": "dam",
+        "Carbamidomethyl": "car",
+        "Oxidation": "oxi",
+        "Phospho": "pho",
+        "UniMod:1": "ace",
+        "Acetyl": "ace",
+        "GlyGly": "gg",
+        "Label:13C(6)": "lab",
+        "Label:13C(6)+GlyGly": "labgg",
+        ")(": ":",
+        "79.9663": "pho",
+        "229.1629": "TMT6",
+        "304.207": "TMT16",
+        "57.0215": "car",
+        "15.9949": "oxi",
         # "": "",
     }
-    pattern = re.compile("|".join(map(re.escape, to_replace)))
+    pattern = re.compile("|".join(map(re.escape, to_replace.keys())))
 
     return series.fillna("").apply(
         lambda s: pattern.sub(lambda m: to_replace[m.group(0)], s)
@@ -2870,6 +2869,7 @@ def set_modifications(usrdata):
         r"Phospho": "pho",
         r"UniMod:21": "pho",
         r"UniMod:1": "ace",
+        r"UniMod:4": "car",
         r"Acetyl": "ace",
         r"GlyGly": "gg",
         r"Label:13C(6)": "lab",
