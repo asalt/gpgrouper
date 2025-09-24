@@ -3287,6 +3287,148 @@ def set_up(usrdatas, column_aliases, enzyme="trypsin/P", protein_column=None):
     return protein_column_out
 
 
+def set_up_refactor(usrdatas, column_aliases, enzyme="trypsin/P", protein_column=None):
+    """Refactored staging routine mirroring :func:`set_up` behaviour.
+
+    This is not wired into the pipeline yet; it exists so we can gradually
+    validate a cleaner approach alongside the legacy implementation.
+    """
+
+    if not usrdatas:
+        return None
+
+    def _read_input(usrdata):
+        exit_code = usrdata.read_csv(sep="\t")
+        if exit_code != 0:
+            logging.error("Error with reading %r", usrdata)
+        return exit_code == 0
+
+    def _apply_column_aliases(usrdata):
+        if not column_aliases:
+            return protein_column
+
+        standard_name_mapper = column_identifier(usrdata.df, column_aliases)
+        protected = {"Modified sequence", "SequenceModi", "Modified.Sequence"}
+        if protein_column:
+            protected.add(protein_column)
+
+        reverse_map = {v: k for k, v in standard_name_mapper.items()}
+        logging.debug("Column mapping for %r: %s", usrdata, reverse_map)
+
+        protein_out = (
+            reverse_map.get(protein_column, protein_column)
+            if protein_column is not None
+            else None
+        )
+
+        usrdata.df.rename(columns=reverse_map, inplace=True)
+
+        # Keep a placeholder for future pruning of redundant columns.
+        _ = [
+            col
+            for col in usrdata.df.columns
+            if col not in standard_name_mapper and col not in protected
+        ]
+
+        return protein_out
+
+    def _sanitize_sequences(usrdata):
+        if "Sequence" in usrdata.df:
+            usrdata.df["Sequence"] = usrdata.df.Sequence.str.extract(
+                r"(\w{3,})", expand=False
+            )
+
+    def _ensure_base_columns(usrdata):
+        usrdata.populate_base_data()
+
+        defaults = {
+            "DeltaMassPPM": 0,
+            "SpectrumFile": "",
+            "RTmin": 0,
+            "PEP": 0,
+        }
+        for column, value in defaults.items():
+            if column not in usrdata.df:
+                usrdata.df[column] = value
+
+        if "q_value" not in usrdata.df.columns:
+            logging.warning("No q_value available")
+            usrdata.df["q_value"] = 0
+
+        if "PrecursorArea" not in usrdata.df.columns:
+            raise ValueError("!!")
+
+    def _assign_miscuts(usrdata):
+        if "MissedCleavages" in usrdata.df.columns:
+            return
+
+        targets, exceptions = ENZYME[enzyme]["cutsites"], ENZYME[enzyme]["exceptions"]
+        usrdata.df["MissedCleavages"] = usrdata.df.apply(
+            lambda row: calculate_miscuts(
+                row["Sequence"], targets=targets, exceptions=exceptions
+            ),
+            axis=1,
+        )
+
+    def _ensure_ambiguity_column(usrdata):
+        if "PSMAmbiguity" in usrdata.df.columns:
+            return
+        usrdata.categorical_assign("PSMAmbiguity", "Umambiguous")
+
+    def _assign_sequence_modi(usrdata):
+        df = usrdata.df
+        if not usrdata.pipeline == "MQ" and not any(
+            name in df for name in ("Modified sequence", "SequenceModi", "Modified.Sequence")
+        ):
+            usrdata.df = set_modifications(df)
+            return
+
+        df.rename(
+            columns={
+                "Modified sequence": "SequenceModi",
+                "Modified.Sequence": "SequenceModi",
+            },
+            inplace=True,
+        )
+
+        if "Modifications" in df and "SequenceModi" not in df:
+            df["SequenceModiCount"] = count_modis_maxquant(df, usrdata.labeltype)
+        elif "SequenceModi" in df:
+            df["SequenceModi"] = clean_modified_sequence(df.SequenceModi)
+            df["SequenceModiCount"] = count_modis_seqmodi(df, usrdata.labeltype)
+            df["Modifications"] = ""
+        else:
+            df["SequenceModiCount"] = 0
+
+    def _fill_missing_sequence_modi(usrdata):
+        if "SequenceModi" not in usrdata.df:
+            return
+        mask = usrdata.df.SequenceModi.isna()
+        if not mask.any():
+            return
+        usrdata.df.loc[mask, "SequenceModi"] = usrdata.df.loc[mask, "Sequence"]
+        usrdata.categorical_assign("LabelFLAG", 0)
+
+    protein_column_out = None
+
+    for usrdata in usrdatas:
+        if not _read_input(usrdata):
+            continue
+
+        protein_column_out = _apply_column_aliases(usrdata)
+        _sanitize_sequences(usrdata)
+        _ensure_base_columns(usrdata)
+
+        check_required_headers(usrdata.df)
+
+        _assign_miscuts(usrdata)
+        _ensure_ambiguity_column(usrdata)
+        _assign_sequence_modi(usrdata)
+        _fill_missing_sequence_modi(usrdata)
+
+    return protein_column_out
+
+
 def rename_refseq_cols(df, filename):
     fasta_h = ["TaxonID", "HomologeneID", "GeneID", "ProteinGI", "FASTA"]
     # regxs = {x: re.compile(x) for x in _fasta_h}
