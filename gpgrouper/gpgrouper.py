@@ -2771,7 +2771,7 @@ def grouper(
         _df.to_csv(_outf, index=False, columns=_overlapping_cols, sep="\t")
         logging.info(f"Wrote {_outf}")
 
-        # usrdata.clean()
+        usrdata.clean()
 
     # usrdata.df = pd.merge(usrdata.df, temp_df, how='left')
     data_cols = DATA_QUANT_COLS
@@ -2994,6 +2994,8 @@ def _match(
         return min(filter(lambda x: len(x) > 0, nonnulls), key=len)
 
     # Apply it to only the rows with missing geneid
+    if "geneid" not in database and "raw_id" in database: # raw_id if exists should be the >(\S+) ..
+        database["geneid"] = database["raw_id"]
     mask = database["geneid"].isna()
     candidates = set(database.columns) - {"sequence"}
     database.loc[mask, "geneid"] = database.loc[mask].apply(
