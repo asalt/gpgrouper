@@ -9,6 +9,8 @@
 *~
 *.*#
 __pycache__/
+.mypy_cache/
+.pytest_cache/
 *.raw
 venv/
 .DS_Store
@@ -26,3 +28,10 @@ build/
 dist/
 auto/
 venv2/
+
+# Runtime / local caches
+/data/
+
+# Test-run output artifacts
+tests/*_label*.*
+tests/testdata/**/*_label*.*
