@@ -54,6 +54,7 @@ def fetch_info_from_db(keys, key_type="ensembl.protein", fetch_online=True):
     db = get_db(key_type)
     results = {k: db.get(k, None) for k in keys if k in db}
     missing_keys = set(keys) - set(results.keys())
+    missing_keys -= {None, "nan", ""}
     logger.debug(f"Found {len(results)} mappings in the database.")
     logger.debug(f"Missing {len(missing_keys)} mappings.")
 
