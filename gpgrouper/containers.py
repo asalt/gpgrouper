@@ -1,14 +1,66 @@
 """Container for each experiment, has a dataframe and metadata"""
+
 import os
-import re
 import logging
 from datetime import datetime
 import traceback
+from typing import Dict, List
 
 import pandas as pd
 
 
-from . import _version
+from gpgrouper import _version
+
+
+FILTER_DEFAULTS = {
+    "ion_score": 7,
+    "qvalue": 0.05,
+    "pep": "all",
+    "idg": "all",
+    "zmin": 2,
+    "zmax": 6,
+    "modi": 4,
+    "ion_score_bins": (10, 20, 30),
+}
+
+
+class TempFileManager:
+    """Track temporary files associated with a UserData instance."""
+
+    _DEFAULT_KINDS = ("e2g", "psm", "msf")
+
+    def __init__(self) -> None:
+        self._registry: Dict[str, List[str]] = {
+            kind: [] for kind in self._DEFAULT_KINDS
+        }
+
+    def files(self, kind: str) -> List[str]:
+        """Return the list backing storage for a given kind."""
+
+        return self._registry.setdefault(kind, [])
+
+    def register(self, kind: str, path: str) -> None:
+        """Register a temporary file path."""
+
+        self.files(kind).append(path)
+
+    def cleanup(self) -> None:
+        """Attempt to delete the tracked files, keeping failures registered."""
+
+        for kind, paths in self._registry.items():
+            remaining = []
+            for path in paths:
+                try:
+                    os.remove(path)
+                except FileNotFoundError:
+                    continue
+                except OSError:
+                    logging.warning("Unable to remove temporary %s file %s", kind, path)
+                    remaining.append(path)
+                else:
+                    continue
+            paths.clear()
+            paths.extend(remaining)
 
 
 class UserData:
@@ -55,7 +107,12 @@ class UserData:
         self.original_columns = None
 
         # rrs = '{}_{}_{}_'.format(recno, runno, searchno)
-        basename = os.path.splitext(os.path.basename(datafile))[0]
+        if datafile:
+            basename = os.path.splitext(os.path.basename(datafile))[0]
+        elif recno is not None:
+            basename = str(recno)
+        else:
+            basename = "userdata"
         self.basename = basename
         # self.basename = basename.split(rrs)[-1]
 
@@ -68,16 +125,14 @@ class UserData:
         self.miscuts = miscuts
         self.phospho = phospho
         self.acetyl = acetyl
-        self._e2g_files = None
-        self._psm_files = None
-        self._msf_files = None
+        self._temp_files = TempFileManager()
 
         # with open(self.LOGFILE, 'w') as f:
         #     f.write('{} PyGrouper {}'.format(datetime.now(), _version.__version__))
 
     @property
     def taxon_miscut_id(self):
-        "not used"
+        "used but could be depreciated"
         return hash(self.taxonid) + hash(self.miscuts)
 
     def __repr__(self):
@@ -93,43 +148,31 @@ class UserData:
 
     @property
     def e2g_files(self):
-        if self._e2g_files is None:
-            self._e2g_files = list()
-        return self._e2g_files
+        return self._temp_files.files("e2g")
 
     @property
     def psm_files(self):
-        if self._psm_files is None:
-            self._psm_files = list()
-        return self._psm_files
+        return self._temp_files.files("psm")
 
     @property
     def msf_files(self):
-        if self._msf_files is None:
-            self._msf_files = list()
-        return self._msf_files
+        return self._temp_files.files("msf")
 
     def clean(self):
         logging.info("Cleaning")
-        if self.e2g_files: # these are temp files from isobaric label data that can be removed at end
-            for x in self.e2g_files:
-                os.remove(x)
-        if self.psm_files: # these are temp files from isobaric label data that can be removed at end
-            for x in self.psm_files:
-                os.remove(x)
+        self._temp_files.cleanup()
 
     # =========================================
     # not used anymore
     def to_log(self, message):
-        if self._LOGSTACK:  # flush
-            messages = self._LOGSTACK + (messages,)
-        else:
-            messages = (message,)
+        lines = list(self._LOGSTACK)
+        lines.append(message)
+        self._LOGSTACK = list()
         with open(self.LOGFILE, "w+") as f:
-            for message in messages:
-                f.write(message)
-                # f.write(sep)
-                f.write("\n")
+            for line in lines:
+                if not line.endswith("\n"):
+                    line = line + "\n"
+                f.write(line)
 
     def to_logq(self, message):
         self._LOGSTACK.append(message + "\n")
@@ -157,7 +200,7 @@ class UserData:
     def read_csv(self, *args, **kwargs):
         """Uses pandas read_csv function to read an input file
         args and kwargs are passed to this function"""
-        # kwargs['nrows'] = 1000
+        # kwargs["nrows"] = 1000
         try:
             self.df = pd.read_csv(self.full_path(), *args, **kwargs)
             self.original_columns = self.df.columns.values
@@ -168,7 +211,7 @@ class UserData:
             self.EXIT_CODE = 1
             return 1
         if len(self.df) == 0:
-            self.EXIT_CODE = 1
+            self.EXIT_CODE = 2
             return 2
         return 0
 
@@ -215,8 +258,7 @@ class UserData:
         # self.df['psm_ProteinCapacity'] = ''
         # self.df['metadatainfo'] = [tuple()] * len(self.df)
         self.df["metadatainfo"] = ""
-        if not "ion_score_bins" in self.filtervalues:
-            self.filtervalues["ion_score_bins"] = (10, 20, 30)
+        self.ensure_filter_defaults()
         return self
 
     @property
@@ -225,10 +267,17 @@ class UserData:
             **self.filtervalues
         )
         if self.phospho:
-            s += "_phospho_only"
+            s += "_phospho"
         if self.acetyl:
-            s += "_acetyl_only"
+            s += "_acetyl"
         return s
+
+    def ensure_filter_defaults(self):
+        """Ensure filtervalues has the complete default set defined by gpGrouper."""
+
+        for key, value in FILTER_DEFAULTS.items():
+            self.filtervalues.setdefault(key, value)
+        return self.filtervalues
 
     def categorical_assign(self, name, value, **kwargs):
         """
