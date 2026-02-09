@@ -1,1 +1,1 @@
-from . import test
+"""Test suite package for gpGrouper."""

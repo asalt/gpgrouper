@@ -113,9 +113,9 @@ def split_diann_export(file, search_no=4, output_pattern=OUTPUT_PATTERN):
 
 
         if channel is not None:
-            filtered_df = group[group['Channel.Q.Value'] < 0.01]
+            filtered_df = group[group['Channel.Q.Value'] < 0.05]
         else:
-            filtered_df = group[group['Global.Q.Value'] < 0.01]
+            filtered_df = group[group['Global.Q.Value'] < 0.05]
 
 
         # Format the output file name using the provided pattern
